@@ -2,6 +2,10 @@
 #
 #  Copyright (c) 2009-2011 Simen Svale Skogsrud
 #
+#  Adapted for use with an OSX Arduino installation by Stefan Hechenberger.
+#  This is to say that you can simply use 'make' and 'make install' if you
+#  have the Arduino IDE installed (just using its command line tools).
+#
 #  Grbl is free software: you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License as published by
 #  the Free Software Foundation, either version 3 of the License, or
@@ -29,18 +33,23 @@
 
 DEVICE     = atmega328p
 CLOCK      = 16000000
-PROGRAMMER = -c avrisp2 -P usb
+PROGRAMMER = -c usbtiny
 OBJECTS    = main.o motion_control.o gcode.o spindle_control.o wiring_serial.o protocol.o stepper.o \
              eeprom.o settings.o planner.o nuts_bolts.o limits.o
 # FUSES      = -U hfuse:w:0xd9:m -U lfuse:w:0x24:m
-FUSES      = -U hfuse:w:0xd2:m -U lfuse:w:0xff:m
-# update that line with this when programmer is back up: 
-# FUSES      = -U hfuse:w:0xd7:m -U lfuse:w:0xff:m 
+FUSES      = -U hfuse:w:0xd2:m -U lfuse:w:0xff:m   #atmega328
+# FUSES      = -U lfuse:w:0xdf:m -U hfuse:w:0xdf:m   #amega168
 
 # Tune the lines below only if you know what you are doing:
+AVRDUDEAPP=/Applications/Arduino.app/Contents/Resources/Java/hardware/tools/avr/bin/avrdude
+AVRGCCAPP=/Applications/Arduino.app/Contents/Resources/Java/hardware/tools/avr/bin/avr-gcc
+AVROBJCOPYAPP=/Applications/Arduino.app/Contents/Resources/Java/hardware/tools/avr/bin/avr-objcopy
+AVRSIZEAPP=/Applications/Arduino.app/Contents/Resources/Java/hardware/tools/avr/bin/avr-size
+AVROBJDUMPAPP=/Applications/Arduino.app/Contents/Resources/Java/hardware/tools/avr/bin/avr-objdump
+AVRDUDECONFIG=/Applications/Arduino.app/Contents/Resources/Java/hardware/tools/avr/etc/avrdude.conf
 
-AVRDUDE = avrdude $(PROGRAMMER) -p $(DEVICE) -B 10 -F 
-COMPILE = avr-gcc -Wall -Os -DF_CPU=$(CLOCK) -mmcu=$(DEVICE) -I. -ffunction-sections
+AVRDUDE = $(AVRDUDEAPP) $(PROGRAMMER) -p $(DEVICE) -C $(AVRDUDECONFIG) -B 10 -F
+COMPILE = $(AVRGCCAPP) -Wall -Os -DF_CPU=$(CLOCK) -mmcu=$(DEVICE) -I. -ffunction-sections
 
 # symbolic targets:
 all:	grbl.hex
@@ -76,19 +85,19 @@ clean:
 
 # file targets:
 main.elf: $(OBJECTS)
-	$(COMPILE) -o main.elf $(OBJECTS) -lm -Wl,--gc-sections
+	$(COMPILE) -o main.elf $(OBJECTS) -lm
 
 grbl.hex: main.elf
 	rm -f grbl.hex
-	avr-objcopy -j .text -j .data -O ihex main.elf grbl.hex
-	avr-objdump -h main.elf | grep .bss | ruby -e 'puts "\n\n--- Requires %s bytes of SRAM" % STDIN.read.match(/0[0-9a-f]+\s/)[0].to_i(16)'
-	avr-size *.hex *.elf *.o
+	$(AVROBJCOPYAPP) -j .text -j .data -O ihex main.elf grbl.hex
+	$(AVROBJDUMPAPP) -h main.elf | grep .bss | ruby -e 'puts "\n\n--- Requires %s bytes of SRAM" % STDIN.read.match(/0[0-9a-f]+\s/)[0].to_i(16)'
+	$(AVRSIZEAPP) *.hex *.elf *.o
 # If you have an EEPROM section, you must also create a hex file for the
 # EEPROM and add it to the "flash" target.
 
 # Targets for code debugging and analysis:
 disasm:	main.elf
-	avr-objdump -d main.elf
+	$(AVROBJDUMPAPP) -d main.elf
 
 cpp:
 	$(COMPILE) -E main.c 

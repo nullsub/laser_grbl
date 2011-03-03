@@ -41,17 +41,17 @@ typedef struct {
 } settings_v1_t;
 
 // Default settings (used when resetting eeprom-settings)
-#define MICROSTEPS 8
-#define DEFAULT_X_STEPS_PER_MM (94.488188976378*MICROSTEPS)
-#define DEFAULT_Y_STEPS_PER_MM (94.488188976378*MICROSTEPS)
-#define DEFAULT_Z_STEPS_PER_MM (94.488188976378*MICROSTEPS)
-#define DEFAULT_STEP_PULSE_MICROSECONDS 30
+#define MICROSTEPS 10
+#define DEFAULT_X_STEPS_PER_MM 32.80839895    //microsteps/mm
+#define DEFAULT_Y_STEPS_PER_MM 32.80839895    //microsteps/mm
+#define DEFAULT_Z_STEPS_PER_MM 32.80839895    //microsteps/mm
+#define DEFAULT_STEP_PULSE_MICROSECONDS 5
 #define DEFAULT_MM_PER_ARC_SEGMENT 0.1
-#define DEFAULT_RAPID_FEEDRATE 500.0 // in millimeters per minute
-#define DEFAULT_FEEDRATE 500.0
-#define DEFAULT_ACCELERATION (DEFAULT_FEEDRATE/10.0)
-#define DEFAULT_MAX_JERK 300.0
-#define DEFAULT_STEPPING_INVERT_MASK 0
+#define DEFAULT_RAPID_FEEDRATE 25000.0        // in millimeters per minute
+#define DEFAULT_FEEDRATE 5000.0
+#define DEFAULT_ACCELERATION 2000.0
+#define DEFAULT_MAX_JERK 15.0
+#define DEFAULT_STEPPING_INVERT_MASK 224      //B11100000 inverting the axes' direction
 
 void settings_reset() {
   settings.steps_per_mm[X_AXIS] = DEFAULT_X_STEPS_PER_MM;
