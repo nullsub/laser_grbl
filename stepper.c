@@ -32,6 +32,7 @@
 #include "planner.h"
 #include "wiring_serial.h"
 #include "limits.h"
+#include "laser_control.h"
 
 // Some useful constants
 #define STEP_MASK ((1<<X_STEP_BIT)|(1<<Y_STEP_BIT)|(1<<Z_STEP_BIT)) // All step bits
@@ -80,6 +81,9 @@ static uint32_t trapezoid_adjusted_rate;      // The current rate of step_events
 //  that is called ACCELERATION_TICKS_PER_SECOND times per second.
 
 static void set_step_events_per_minute(uint32_t steps_per_minute);
+#ifdef LASER_MODE  
+  static void set_pwm_based_on_actual_speed();
+#endif
 
 void st_wake_up() {
   STEPPERS_ENABLE_PORT |= (1<<STEPPERS_ENABLE_BIT);
@@ -92,6 +96,9 @@ static void trapezoid_generator_reset() {
   trapezoid_adjusted_rate = current_block->initial_rate;  
   trapezoid_tick_cycle_counter = 0; // Always start a new trapezoid with a full acceleration tick
   set_step_events_per_minute(trapezoid_adjusted_rate);
+  #ifdef LASER_MODE  
+    set_pwm_based_on_actual_speed();
+  #endif  
 }
 
 // This is called ACCELERATION_TICKS_PER_SECOND times per second by the step_event
@@ -102,6 +109,9 @@ static void trapezoid_generator_tick() {
     if (step_events_completed < current_block->accelerate_until) {
       trapezoid_adjusted_rate += current_block->rate_delta;
       set_step_events_per_minute(trapezoid_adjusted_rate);
+      #ifdef LASER_MODE  
+        set_pwm_based_on_actual_speed();
+      #endif        
     } else if (step_events_completed > current_block->decelerate_after) {
       // NOTE: We will only reduce speed if the result will be > 0. This catches small
       // rounding errors that might leave steps hanging after the last trapezoid tick.
@@ -112,11 +122,17 @@ static void trapezoid_generator_tick() {
         trapezoid_adjusted_rate = current_block->final_rate;
       }        
       set_step_events_per_minute(trapezoid_adjusted_rate);
+      #ifdef LASER_MODE  
+        set_pwm_based_on_actual_speed();
+      #endif        
     } else {
       // Make sure we cruise at exactly nominal rate
       if (trapezoid_adjusted_rate != current_block->nominal_rate) {
         trapezoid_adjusted_rate = current_block->nominal_rate;
         set_step_events_per_minute(trapezoid_adjusted_rate);
+        #ifdef LASER_MODE  
+          set_pwm_based_on_actual_speed();
+        #endif          
       }
     }
   }
@@ -185,6 +201,9 @@ SIGNAL(TIMER1_COMPA_vect)
     }
   } else {
     out_bits = 0;
+    #ifdef LASER_MODE  
+      set_laser_intensity(LASER_OFF);
+    #endif 
   }          
   out_bits ^= settings.invert_mask;
   
@@ -290,6 +309,21 @@ static void set_step_events_per_minute(uint32_t steps_per_minute) {
   if (steps_per_minute < MINIMUM_STEPS_PER_MINUTE) { steps_per_minute = MINIMUM_STEPS_PER_MINUTE; }
   cycles_per_step_event = config_step_timer((TICKS_PER_MICROSECOND*1000000*60)/steps_per_minute);
 }
+
+#ifdef LASER_MODE  
+  static void set_pwm_based_on_actual_speed() {
+    // double actual_speed_mm_per_min = 
+    //           (current_block->nominal_speed/current_block->nominal_rate)*trapezoid_adjusted_rate;
+  
+    // calculate the ratio between nominal and actual speed
+    // apply this factor to the nominal_laser_intensity and apply
+    // NOTE: probably need to be careful with div by zero
+    // ALSO: probably linear mapping is not exactly what's needed, might be material-specific
+    double current_slowdown_factor = (double)current_block->nominal_rate/(double)trapezoid_adjusted_rate;
+    set_laser_intensity((uint8_t)(current_block->nominal_laser_intensity*current_slowdown_factor));
+  
+  }
+#endif
 
 void st_go_home()
 {

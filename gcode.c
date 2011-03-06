@@ -30,6 +30,7 @@
 #include "spindle_control.h"
 #include "errno.h"
 #include "protocol.h"
+#include "config.h"
 
 #define MM_PER_INCH (25.4)
 
@@ -63,11 +64,19 @@ typedef struct {
   uint8_t inches_mode;             /* 0 = millimeter mode, 1 = inches mode {G20, G21} */
   uint8_t absolute_mode;           /* 0 = relative motion, 1 = absolute motion {G90, G91} */
   uint8_t program_flow;
-  int8_t spindle_direction;
+  #ifndef LASER_MODE 
+    int8_t spindle_direction;
+  #else
+    int8_t laser_enable;
+  #endif
   double feed_rate, seek_rate;     /* Millimeters/second */
   double position[3];              /* Where the interpreter considers the tool to be at this point in the code */
   uint8_t tool;
-  int16_t spindle_speed;           /* RPM/100 */
+  #ifndef LASER_MODE 
+    int16_t spindle_speed;         /* RPM/100 */
+  #else
+    int16_t nominal_laser_intensity;
+  #endif  
   uint8_t plane_axis_0, 
           plane_axis_1, 
           plane_axis_2;            // The axes of the selected plane  
@@ -91,6 +100,9 @@ void gc_init() {
   gc.seek_rate = settings.default_seek_rate/60;
   select_plane(X_AXIS, Y_AXIS, Z_AXIS);
   gc.absolute_mode = true;
+  #ifdef LASER_MODE 
+    gc.nominal_laser_intensity = LASER_OFF;
+  #endif    
 }
 
 static float to_millimeters(double value) {
@@ -177,9 +189,15 @@ uint8_t gc_execute_line(char *line) {
       switch(int_value) {
         case 0: case 1: gc.program_flow = PROGRAM_FLOW_PAUSED; break;
         case 2: case 30: case 60: gc.program_flow = PROGRAM_FLOW_COMPLETED; break;
-        case 3: gc.spindle_direction = 1; break;
-        case 4: gc.spindle_direction = -1; break;
-        case 5: gc.spindle_direction = 0; break;
+        #ifndef LASER_MODE 
+          case 3: gc.spindle_direction = 1; break;
+          case 4: gc.spindle_direction = -1; break;
+          case 5: gc.spindle_direction = 0; break;
+        #else
+          case 3: gc.laser_enable = 1; break;
+          case 4: gc.laser_enable = 1; break;
+          case 5: gc.laser_enable = 0; break;        
+        #endif
         default: FAIL(STATUS_UNSUPPORTED_STATEMENT);
       }            
       break;
@@ -214,7 +232,12 @@ uint8_t gc_execute_line(char *line) {
       case 'I': case 'J': case 'K': offset[letter-'I'] = unit_converted_value; break;
       case 'P': p = value; break;
       case 'R': r = unit_converted_value; radius_mode = true; break;
-      case 'S': gc.spindle_speed = value; break;
+      #ifndef LASER_MODE
+        case 'S': gc.spindle_speed = value; break;
+      #else
+        // this only applies to the following moves
+        case 'S': gc.nominal_laser_intensity = value; break;      
+      #endif
       case 'X': case 'Y': case 'Z':
       if (gc.absolute_mode || absolute_override) {
         target[letter - 'X'] = unit_converted_value;
@@ -228,8 +251,10 @@ uint8_t gc_execute_line(char *line) {
   // If there were any errors parsing this line, we will return right away with the bad news
   if (gc.status_code) { return(gc.status_code); }
     
-  // Update spindle state
-  spindle_run(gc.spindle_direction, gc.spindle_speed);
+  #ifndef LASER_MODE  
+    // Update spindle state
+    spindle_run(gc.spindle_direction, gc.spindle_speed);
+  #endif
   
   // Perform any physical actions
   switch (next_action) {
@@ -242,11 +267,21 @@ uint8_t gc_execute_line(char *line) {
     switch (gc.motion_mode) {
       case MOTION_MODE_CANCEL: break;
       case MOTION_MODE_SEEK:
-      mc_line(target[X_AXIS], target[Y_AXIS], target[Z_AXIS], gc.seek_rate, false);
+      #ifndef LASER_MODE  
+        mc_line(target[X_AXIS], target[Y_AXIS], target[Z_AXIS], gc.seek_rate, false);
+      #else
+        mc_line(target[X_AXIS], target[Y_AXIS], target[Z_AXIS], gc.seek_rate, false, LASER_OFF);
+      #endif
       break;
       case MOTION_MODE_LINEAR:
-      mc_line(target[X_AXIS], target[Y_AXIS], target[Z_AXIS], 
-        (gc.inverse_feed_rate_mode) ? inverse_feed_rate : gc.feed_rate, gc.inverse_feed_rate_mode);
+      #ifndef LASER_MODE  
+        mc_line(target[X_AXIS], target[Y_AXIS], target[Z_AXIS], 
+          (gc.inverse_feed_rate_mode) ? inverse_feed_rate : gc.feed_rate, gc.inverse_feed_rate_mode);
+      #else
+        mc_line(target[X_AXIS], target[Y_AXIS], target[Z_AXIS], 
+          (gc.inverse_feed_rate_mode) ? inverse_feed_rate : gc.feed_rate, gc.inverse_feed_rate_mode,
+          gc.nominal_laser_intensity);
+      #endif      
       break;
 #ifdef __AVR_ATmega328P__
       case MOTION_MODE_CW_ARC: case MOTION_MODE_CCW_ARC:
@@ -371,13 +406,24 @@ uint8_t gc_execute_line(char *line) {
       double radius = hypot(offset[gc.plane_axis_0], offset[gc.plane_axis_1]);
       // Calculate the motion along the depth axis of the helix
       double depth = target[gc.plane_axis_2]-gc.position[gc.plane_axis_2];
-      // Trace the arc
-      mc_arc(theta_start, angular_travel, radius, depth, gc.plane_axis_0, gc.plane_axis_1, gc.plane_axis_2, 
-        (gc.inverse_feed_rate_mode) ? inverse_feed_rate : gc.feed_rate, gc.inverse_feed_rate_mode,
-        gc.position);
-      // Finish off with a line to make sure we arrive exactly where we think we are
-      mc_line(target[X_AXIS], target[Y_AXIS], target[Z_AXIS], 
-        (gc.inverse_feed_rate_mode) ? inverse_feed_rate : gc.feed_rate, gc.inverse_feed_rate_mode);
+      #ifndef LASER_MODE  
+        // Trace the arc
+        mc_arc(theta_start, angular_travel, radius, depth, gc.plane_axis_0, gc.plane_axis_1, gc.plane_axis_2, 
+          (gc.inverse_feed_rate_mode) ? inverse_feed_rate : gc.feed_rate, gc.inverse_feed_rate_mode,
+          gc.position);
+        // Finish off with a line to make sure we arrive exactly where we think we are
+        mc_line(target[X_AXIS], target[Y_AXIS], target[Z_AXIS], 
+          (gc.inverse_feed_rate_mode) ? inverse_feed_rate : gc.feed_rate, gc.inverse_feed_rate_mode);
+      #else
+        // Trace the arc
+        mc_arc(theta_start, angular_travel, radius, depth, gc.plane_axis_0, gc.plane_axis_1, gc.plane_axis_2, 
+          (gc.inverse_feed_rate_mode) ? inverse_feed_rate : gc.feed_rate, gc.inverse_feed_rate_mode,
+          gc.position, gc.nominal_laser_intensity);
+        // Finish off with a line to make sure we arrive exactly where we think we are
+        mc_line(target[X_AXIS], target[Y_AXIS], target[Z_AXIS], 
+          (gc.inverse_feed_rate_mode) ? inverse_feed_rate : gc.feed_rate, gc.inverse_feed_rate_mode,
+          gc.nominal_laser_intensity);
+      #endif       
       break;
 #endif      
     }    

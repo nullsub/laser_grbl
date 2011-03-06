@@ -3,6 +3,7 @@
   Part of Grbl
 
   Copyright (c) 2009-2011 Simen Svale Skogsrud
+  Adapted from spindle_control.c by Stephan Hechenberger  
 
   Grbl is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -18,18 +19,19 @@
   along with Grbl.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef spindle_control_h
-#define spindle_control_h 
+#ifndef laser_control_h
+#define laser_control_h 
 
 #include "config.h"
 
-#ifndef LASER_MODE
+#ifdef LASER_MODE 
 
 #include <avr/io.h>
 
-void spindle_init();
-void spindle_run(int direction, uint32_t rpm);
-void spindle_stop();
+void laser_init();
+void laser_enable();
+void laser_disable();
+void set_laser_intensity(uint8_t intensity);  //0-255 = 0-100%
 
 #endif
 

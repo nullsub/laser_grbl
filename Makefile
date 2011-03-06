@@ -35,7 +35,7 @@ DEVICE     = atmega328p
 CLOCK      = 16000000
 PROGRAMMER = -c usbtiny
 OBJECTS    = main.o motion_control.o gcode.o spindle_control.o wiring_serial.o protocol.o stepper.o \
-             eeprom.o settings.o planner.o nuts_bolts.o limits.o
+             eeprom.o settings.o planner.o nuts_bolts.o limits.o laser_control.o
 # FUSES      = -U hfuse:w:0xd9:m -U lfuse:w:0x24:m
 FUSES      = -U hfuse:w:0xd2:m -U lfuse:w:0xff:m   #atmega328
 # FUSES      = -U lfuse:w:0xdf:m -U hfuse:w:0xdf:m   #amega168

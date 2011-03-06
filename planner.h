@@ -22,6 +22,7 @@
 #define planner_h
                  
 #include <inttypes.h>
+#include "config.h"
 
 // This struct is used when buffering the setup for each linear movement "nominal" values are as specified in 
 // the source g-code and may never actually be reached if acceleration management is active.
@@ -39,6 +40,9 @@ typedef struct {
   double entry_factor;                // The factor representing the change in speed at the start of this trapezoid.
                                       // (The end of the curren speed trapezoid is defined by the entry_factor of the
                                       // next block)
+  #ifdef LASER_MODE                                       
+    uint8_t  nominal_laser_intensity;
+  #endif
   
   // Settings for the trapezoid generator
   uint32_t initial_rate;              // The jerk-adjusted step rate at start of block  
@@ -55,7 +59,11 @@ void plan_init();
 // Add a new linear movement to the buffer. x, y and z is the signed, absolute target position in 
 // millimaters. Feed rate specifies the speed of the motion. If feed rate is inverted, the feed
 // rate is taken to mean "frequency" and would complete the operation in 1/feed_rate minutes.
-void plan_buffer_line(double x, double y, double z, double feed_rate, int invert_feed_rate);
+#ifndef LASER_MODE  
+  void plan_buffer_line(double x, double y, double z, double feed_rate, int invert_feed_rate);
+#else
+  void plan_buffer_line(double x, double y, double z, double feed_rate, int invert_feed_rate, int nominal_laser_intensity);
+#endif
 
 // Called when the current block is no longer needed. Discards the block and makes the memory
 // availible for new blocks.

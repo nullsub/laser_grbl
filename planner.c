@@ -28,7 +28,6 @@
 #include "nuts_bolts.h"
 #include "stepper.h"
 #include "settings.h"
-#include "config.h"
 #include "wiring_serial.h"
 
 // The number of linear motions that can be in the plan at any give time
@@ -308,15 +307,19 @@ block_t *plan_get_current_block() {
 // Add a new linear movement to the buffer. steps_x, _y and _z is the absolute position in 
 // mm. Microseconds specify how many microseconds the move should take to perform. To aid acceleration
 // calculation the caller must also provide the physical length of the line in millimeters.
-void plan_buffer_line(double x, double y, double z, double feed_rate, int invert_feed_rate) {
+#ifndef LASER_MODE  
+  void plan_buffer_line(double x, double y, double z, double feed_rate, int invert_feed_rate) {
+#else
+  void plan_buffer_line(double x, double y, double z, double feed_rate, int invert_feed_rate, int nominal_laser_intensity) {
+#endif
   // The target position of the tool in absolute steps
-  
+
   // Calculate target position in absolute steps
   int32_t target[3];
   target[X_AXIS] = lround(x*settings.steps_per_mm[X_AXIS]);
   target[Y_AXIS] = lround(y*settings.steps_per_mm[Y_AXIS]);
   target[Z_AXIS] = lround(z*settings.steps_per_mm[Z_AXIS]);     
-  
+
   // Calculate the buffer head after we push this byte
 	int next_buffer_head = (block_buffer_head + 1) % BLOCK_BUFFER_SIZE;	
 	// If the buffer is full: good! That means we are well ahead of the robot. 
@@ -331,20 +334,20 @@ void plan_buffer_line(double x, double y, double z, double feed_rate, int invert
   block->step_event_count = max(block->steps_x, max(block->steps_y, block->steps_z));
   // Bail if this is a zero-length block
   if (block->step_event_count == 0) { return; };
-  
+
   double delta_x_mm = (target[X_AXIS]-position[X_AXIS])/settings.steps_per_mm[X_AXIS];
   double delta_y_mm = (target[Y_AXIS]-position[Y_AXIS])/settings.steps_per_mm[Y_AXIS];
   double delta_z_mm = (target[Z_AXIS]-position[Z_AXIS])/settings.steps_per_mm[Z_AXIS];
   block->millimeters = sqrt(square(delta_x_mm) + square(delta_y_mm) + square(delta_z_mm));
-	
-  
+
+
   uint32_t microseconds;
   if (!invert_feed_rate) {
     microseconds = lround((block->millimeters/feed_rate)*1000000);
   } else {
     microseconds = lround(ONE_MINUTE_OF_MICROSECONDS/feed_rate);
   }
-  
+
   // Calculate speed in mm/minute for each axis
   double multiplier = 60.0*1000000.0/microseconds;
   block->speed_x = delta_x_mm * multiplier;
@@ -354,6 +357,11 @@ void plan_buffer_line(double x, double y, double z, double feed_rate, int invert
   block->nominal_rate = ceil(block->step_event_count * multiplier);  
   block->entry_factor = 0.0;
   
+  #ifdef LASER_MODE
+    // set nominal laser intensity
+    block->nominal_laser_intensity = nominal_laser_intensity;
+  #endif    
+
   // Compute the acceleration rate for the trapezoid generator. Depending on the slope of the line
   // average travel per step event changes. For a line along one axis the travel per step event
   // is equal to the travel/step in the particular axis. For a 45 degree line the steppers of both
@@ -375,21 +383,23 @@ void plan_buffer_line(double x, double y, double z, double feed_rate, int invert
     block->decelerate_after = block->step_event_count;
     block->rate_delta = 0;
   }
-  
+
   // Compute direction bits for this block
   block->direction_bits = 0;
   if (target[X_AXIS] < position[X_AXIS]) { block->direction_bits |= (1<<X_DIRECTION_BIT); }
   if (target[Y_AXIS] < position[Y_AXIS]) { block->direction_bits |= (1<<Y_DIRECTION_BIT); }
   if (target[Z_AXIS] < position[Z_AXIS]) { block->direction_bits |= (1<<Z_DIRECTION_BIT); }
-  
+
   // Move buffer head
   block_buffer_head = next_buffer_head;     
   // Update position 
   memcpy(position, target, sizeof(target)); // position[] = target[]
-  
+
   if (acceleration_manager_enabled) { planner_recalculate(); }  
   st_wake_up();
-}
+}  
+
+
 
 // Reset the planner position vector
 void plan_set_current_position(double x, double y, double z) {

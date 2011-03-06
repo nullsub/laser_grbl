@@ -18,11 +18,14 @@
   along with Grbl.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "spindle_control.h"
-#include "settings.h"
-#include "config.h"
-#include "stepper.h"
 
+#include "spindle_control.h"
+
+#ifndef LASER_MODE
+
+#include "settings.h"
+#include "stepper.h"
+#include "config.h"
 #include <avr/io.h>
 
 static int current_direction;
@@ -54,3 +57,5 @@ void spindle_stop()
 {
   spindle_run(0, 0);
 }
+
+#endif

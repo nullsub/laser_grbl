@@ -21,9 +21,11 @@
 #include <avr/io.h>
 #include <avr/sleep.h>
 #include <util/delay.h>
+#include "config.h"
 #include "planner.h"
 #include "stepper.h"
 #include "spindle_control.h"
+#include "laser_control.h"
 #include "motion_control.h"
 #include "gcode.h"
 #include "protocol.h"
@@ -41,8 +43,12 @@ int main(void)
   protocol_init();        
   settings_init();  
   plan_init();      
-  st_init();        
-  spindle_init();   
+  st_init();
+  #ifndef LASER_MODE     
+    spindle_init();
+  #else
+    laser_init();
+  #endif   
   gc_init();
   limits_init();  
                     
