@@ -314,14 +314,8 @@ static void set_step_events_per_minute(uint32_t steps_per_minute) {
   static void set_pwm_based_on_actual_speed() {
     // double actual_speed_mm_per_min = 
     //           (current_block->nominal_speed/current_block->nominal_rate)*trapezoid_adjusted_rate;
-  
-    // calculate the ratio between nominal and actual speed
-    // apply this factor to the nominal_laser_intensity and apply
-    // NOTE: probably need to be careful with div by zero
-    // ALSO: probably linear mapping is not exactly what's needed, might be material-specific
-    double current_slowdown_factor = (double)current_block->nominal_rate/(double)trapezoid_adjusted_rate;
-    set_laser_intensity((uint8_t)(current_block->nominal_laser_intensity*current_slowdown_factor));
-  
+    uint8_t slowdown_in_pct_0to255 = (255*trapezoid_adjusted_rate)/current_block->nominal_rate;
+    set_laser_intensity((current_block->nominal_laser_intensity*slowdown_in_pct_0to255)/255);  
   }
 #endif
 
