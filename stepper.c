@@ -47,6 +47,9 @@
 #define ENABLE_STEPPER_DRIVER_INTERRUPT()  TIMSK1 |= (1<<OCIE1A)
 #define DISABLE_STEPPER_DRIVER_INTERRUPT() TIMSK1 &= ~(1<<OCIE1A)
 
+// real-time position in absolute steps
+static int32_t st_position[3];  
+
 static block_t *current_block;  // A pointer to the block currently being traced
 
 // Variables used by The Stepper Driver Interrupt
@@ -88,6 +91,15 @@ static void set_step_events_per_minute(uint32_t steps_per_minute);
 void st_wake_up() {
   STEPPERS_ENABLE_PORT |= (1<<STEPPERS_ENABLE_BIT);
   ENABLE_STEPPER_DRIVER_INTERRUPT();  
+}
+
+void st_fall_asleep() {
+  STEPPERS_ENABLE_PORT &= ~(1<<STEPPERS_ENABLE_BIT);
+  DISABLE_STEPPER_DRIVER_INTERRUPT();
+  current_block = NULL;
+  #ifdef LASER_MODE  
+    set_laser_intensity(LASER_OFF);
+  #endif   
 }
 
 // Initializes the trapezoid generator from the current block. Called whenever a new 
@@ -170,9 +182,7 @@ SIGNAL(TIMER1_COMPA_vect)
       counter_z = counter_x;
       step_events_completed = 0;
     } else {
-      // set enable pin     
-      STEPPERS_ENABLE_PORT &= ~(1<<STEPPERS_ENABLE_BIT);
-      DISABLE_STEPPER_DRIVER_INTERRUPT();
+      st_fall_asleep();
     }    
   } 
 
@@ -207,6 +217,29 @@ SIGNAL(TIMER1_COMPA_vect)
   }          
   out_bits ^= settings.invert_mask;
   
+  // keep track of absolute position
+  if ((out_bits >> X_STEP_BIT) & 1) {
+    if ((out_bits >> X_DIRECTION_BIT) & 1 ) {
+      st_position[X_AXIS] += 1;
+    } else {
+      st_position[X_AXIS] -= 1;
+    }
+  }
+  if ((out_bits >> Y_STEP_BIT) & 1) {
+    if ((out_bits >> Y_DIRECTION_BIT) & 1 ) {
+      st_position[Y_AXIS] += 1;
+    } else {
+      st_position[Y_AXIS] -= 1;
+    }
+  }
+  if ((out_bits >> Z_STEP_BIT) & 1) {
+    if ((out_bits >> Z_DIRECTION_BIT) & 1 ) {
+      st_position[Z_AXIS] += 1;
+    } else {
+      st_position[Z_AXIS] -= 1;
+    }
+  }  
+  
   // In average this generates a trapezoid_generator_tick every CYCLES_PER_ACCELERATION_TICK by keeping track
   // of the number of elapsed cycles. The code assumes that step_events occur significantly more often than
   // trapezoid_generator_ticks as they well should. 
@@ -230,6 +263,8 @@ SIGNAL(TIMER2_OVF_vect)
 // Initialize and start the stepper motor subsystem
 void st_init()
 {
+  clear_vector(st_position);
+  
 	// Configure directions of interface pins
   STEPPING_DDR   |= STEPPING_MASK;
   STEPPING_PORT = (STEPPING_PORT & ~STEPPING_MASK) | settings.invert_mask;
@@ -253,8 +288,7 @@ void st_init()
   set_step_events_per_minute(6000);
   trapezoid_tick_cycle_counter = 0;
 
-  STEPPERS_ENABLE_PORT &= ~(1<<STEPPERS_ENABLE_BIT);
-  DISABLE_STEPPER_DRIVER_INTERRUPT();  
+  st_fall_asleep();
        
   sei();
 }
@@ -314,13 +348,21 @@ static void set_step_events_per_minute(uint32_t steps_per_minute) {
   static void set_pwm_based_on_actual_speed() {
     // double actual_speed_mm_per_min = 
     //           (current_block->nominal_speed/current_block->nominal_rate)*trapezoid_adjusted_rate;
-    uint8_t slowdown_in_pct_0to255 = (255*trapezoid_adjusted_rate)/current_block->nominal_rate;
-    set_laser_intensity((current_block->nominal_laser_intensity*slowdown_in_pct_0to255)/255);  
+    //uint8_t slowdown_in_pct_0to255 = (255*trapezoid_adjusted_rate)/current_block->nominal_rate;
+    //set_laser_intensity((current_block->nominal_laser_intensity*slowdown_in_pct_0to255)/255); 
+    
+    // run at constant intensity for now
+    set_laser_intensity(current_block->nominal_laser_intensity);  
   }
 #endif
 
-void st_go_home()
-{
+void st_go_home() {
   limits_go_home();  
   plan_set_current_position(0,0,0);
+}
+
+void st_get_position( double *x, double *y, double *z) {
+  *x = st_position[X_AXIS]/settings.steps_per_mm[X_AXIS];
+  *y = st_position[Y_AXIS]/settings.steps_per_mm[Y_AXIS];
+  *z = st_position[Z_AXIS]/settings.steps_per_mm[Z_AXIS];
 }

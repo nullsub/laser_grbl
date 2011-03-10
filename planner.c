@@ -299,6 +299,11 @@ void plan_discard_current_block() {
   }
 }
 
+void plan_reset_block_buffer() {
+  block_buffer_head = 0;
+  block_buffer_tail = 0;
+}
+
 block_t *plan_get_current_block() {
   if (block_buffer_head == block_buffer_tail) { return(NULL); }
   return(&block_buffer[block_buffer_tail]);

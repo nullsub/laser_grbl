@@ -38,6 +38,7 @@
 #define NEXT_ACTION_DWELL 1
 #define NEXT_ACTION_GO_HOME 2
 #define NEXT_ACTION_SET_COORDINATE_OFFSET 3
+#define NEXT_ACTION_EMERGENCY_STOP 4
 
 #define MOTION_MODE_SEEK 0 // G0 
 #define MOTION_MODE_LINEAR 1 // G1
@@ -198,6 +199,7 @@ uint8_t gc_execute_line(char *line) {
           case 4: gc.laser_enable = 1; break;
           case 5: gc.laser_enable = 0; break;        
         #endif
+        case 112: next_action = NEXT_ACTION_EMERGENCY_STOP; break;
         default: FAIL(STATUS_UNSUPPORTED_STATEMENT);
       }            
       break;
@@ -262,6 +264,14 @@ uint8_t gc_execute_line(char *line) {
     case NEXT_ACTION_DWELL: mc_dwell(trunc(p*1000)); break;   
     case NEXT_ACTION_SET_COORDINATE_OFFSET: 
     mc_set_current_position(target[X_AXIS], target[Y_AXIS], target[Z_AXIS]);
+    break;
+    case NEXT_ACTION_EMERGENCY_STOP:
+    mc_emergency_stop();
+    // captain, we have a new target!
+    st_get_position(&gc.position[X_AXIS], &gc.position[Y_AXIS], &gc.position[Z_AXIS]);
+    mc_set_current_position(gc.position[X_AXIS], gc.position[Y_AXIS], gc.position[Z_AXIS]);
+    mc_line(target[X_AXIS], target[Y_AXIS], target[Z_AXIS], gc.seek_rate, false, LASER_OFF);
+    //return;  // totally bail
     break;
     case NEXT_ACTION_DEFAULT: 
     switch (gc.motion_mode) {

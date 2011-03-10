@@ -72,6 +72,9 @@ void plan_discard_current_block();
 // Gets the current block. Returns NULL if buffer empty
 block_t *plan_get_current_block();
 
+// purge all command in the buffer
+void plan_reset_block_buffer();
+
 // Enables or disables acceleration-management for upcoming blocks
 void plan_set_acceleration_manager_enabled(int enabled);
 

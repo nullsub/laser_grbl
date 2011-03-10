@@ -124,7 +124,13 @@ void mc_dwell(uint32_t milliseconds)
 
 #endif
 
-void mc_go_home()
-{
+void mc_go_home() {
   st_go_home();
 }
+
+void mc_emergency_stop() {
+  st_fall_asleep();           // stop all motion immediately
+  plan_reset_block_buffer();  // drop all queued commands
+}
+
+
