@@ -2,9 +2,7 @@
 #
 #  Copyright (c) 2009-2011 Simen Svale Skogsrud
 #
-#  Adapted for use with an OSX Arduino installation by Stefan Hechenberger.
-#  This is to say that you can simply use 'make' and 'make install' if you
-#  have the Arduino IDE installed (just using its command line tools).
+#  Adapted for Lasersaur by Stefan Hechenberger
 #
 #  Grbl is free software: you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License as published by
@@ -20,27 +18,20 @@
 #  along with Grbl.  If not, see <http://www.gnu.org/licenses/>.
 
 
-# This is a prototype Makefile. Modify it according to your needs.
-# You should at least check the settings for
-# DEVICE ....... The AVR device you compile for
-# CLOCK ........ Target AVR clock rate in Hertz
-# OBJECTS ...... The object files created from your source files. This list is
-#                usually the same as the list of source files with suffix ".o".
-# PROGRAMMER ... Options to avrdude which define the hardware you use for
-#                uploading to the AVR and the interface where this hardware
-#                is connected.
-# FUSES ........ Parameters for avrdude to flash the fuses appropriately.
+# How to use this Makefile
+# ========================
 
-DEVICE     = atmega328p
-CLOCK      = 16000000
-PROGRAMMER = -c usbtiny
-OBJECTS    = main.o motion_control.o gcode.o spindle_control.o wiring_serial.o protocol.o stepper.o \
-             eeprom.o settings.o planner.o nuts_bolts.o limits.o laser_control.o
-# FUSES      = -U hfuse:w:0xd9:m -U lfuse:w:0x24:m
-FUSES      = -U hfuse:w:0xd2:m -U lfuse:w:0xff:m   #atmega328
-# FUSES      = -U lfuse:w:0xdf:m -U hfuse:w:0xdf:m   #amega168
+# I am on OSX with the Arduino IDE (022) installed. While I don't use the IDE
+# directly I point this Makefile to the tool chain of the Arduino IDE.
 
-# Tune the lines below only if you know what you are doing:
+# 1.) Define port to your Arduino One.
+
+PORT = /dev/tty.usbmodem621
+
+# 2.) Make sure the following points to the avr build tools.
+#     The default here is what you use if you are on OSX with
+#     the Arduino IDE installed.
+
 AVRDUDEAPP=/Applications/Arduino.app/Contents/Resources/Java/hardware/tools/avr/bin/avrdude
 AVRGCCAPP=/Applications/Arduino.app/Contents/Resources/Java/hardware/tools/avr/bin/avr-gcc
 AVROBJCOPYAPP=/Applications/Arduino.app/Contents/Resources/Java/hardware/tools/avr/bin/avr-objcopy
@@ -48,7 +39,26 @@ AVRSIZEAPP=/Applications/Arduino.app/Contents/Resources/Java/hardware/tools/avr/
 AVROBJDUMPAPP=/Applications/Arduino.app/Contents/Resources/Java/hardware/tools/avr/bin/avr-objdump
 AVRDUDECONFIG=/Applications/Arduino.app/Contents/Resources/Java/hardware/tools/avr/etc/avrdude.conf
 
-AVRDUDE = $(AVRDUDEAPP) $(PROGRAMMER) -p $(DEVICE) -C $(AVRDUDECONFIG) -B 10 -F
+# 3.) Compile grbl and load it to an Arduino Uno via USB
+#     In the Teminal from the location of the Makefile type: 
+#     make flash
+
+
+##########################################################
+# Tune the lines below only if you know what you are doing:
+
+DEVICE     = atmega328p
+CLOCK      = 16000000
+PROGRAMMER = avrisp
+BAUD       = 115200
+
+OBJECTS    = main.o motion_control.o gcode.o spindle_control.o wiring_serial.o protocol.o stepper.o \
+             eeprom.o settings.o planner.o nuts_bolts.o limits.o laser_control.o
+# FUSES      = -U hfuse:w:0xd9:m -U lfuse:w:0x24:m
+# FUSES      = -U hfuse:w:0xd2:m -U lfuse:w:0xff:m   #atmega328
+# FUSES      = -U lfuse:w:0xdf:m -U hfuse:w:0xdf:m   #amega168
+
+AVRDUDE = $(AVRDUDEAPP) -c $(PROGRAMMER) -b $(BAUD) -P $(PORT) -p $(DEVICE) -C $(AVRDUDECONFIG) -B 10 -F
 COMPILE = $(AVRGCCAPP) -Wall -Os -DF_CPU=$(CLOCK) -mmcu=$(DEVICE) -I. -ffunction-sections
 
 # symbolic targets:

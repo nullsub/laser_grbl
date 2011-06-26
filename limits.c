@@ -57,15 +57,15 @@ static void homing_cycle(bool x_axis, bool y_axis, bool z_axis, bool reverse_dir
       // Invert limit_bits if this is a reverse homing_cycle
       limit_bits ^= LIMIT_MASK;
     }
-    if (x_axis && limit_bits & (1<<X_LIMIT_BIT)) {
+    if (x_axis && !(limit_bits & (1<<X_LIMIT_BIT))) {
       x_axis = false;
       out_bits ^= (1<<X_STEP_BIT);      
     }    
-    if (y_axis && limit_bits & (1<<Y_LIMIT_BIT)) {
+    if (y_axis && !(limit_bits & (1<<Y_LIMIT_BIT))) {
       y_axis = false;
       out_bits ^= (1<<Y_STEP_BIT);
     }    
-    if (z_axis && limit_bits & (1<<Z_LIMIT_BIT)) {
+    if (z_axis && !(limit_bits & (1<<Z_LIMIT_BIT))) {
       z_axis = false;
       out_bits ^= (1<<Z_STEP_BIT);
     }

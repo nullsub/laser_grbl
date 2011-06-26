@@ -63,8 +63,8 @@
   
 #else
   // LASER_MODE
-  // Needed to move pins around since we need to control the laser via 
-  // a harware PWM on Timer0 which can output on either PD5 or PD6.
+  // Using different pins from standard grbl because we need to control the 
+  // laser via a harware PWM on Timer0 which can output on either PD5 or PD6.
   
   #define LASER_OFF 0
   
@@ -85,8 +85,11 @@
   #define LIMIT_PORT     PORTC
   #define LIMIT_PIN      PINC
   #define X_LIMIT_BIT          0
-  #define Y_LIMIT_BIT          1
-  #define Z_LIMIT_BIT          2
+  // #define X2_LIMIT_BIT      1
+  #define Y_LIMIT_BIT          2
+  // #define Y2_LIMIT_BIT      3
+  #define DOOR_BIT             4
+  #define Z_LIMIT_BIT          5  // actually we don't have a z-axis, this is extra-gpio-4
 
   // laser pwm pin is PD6 (hardware PWM for timer0)
   // no need to set the following
