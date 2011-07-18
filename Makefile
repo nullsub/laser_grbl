@@ -49,7 +49,8 @@ AVRDUDECONFIG=/Applications/Arduino.app/Contents/Resources/Java/hardware/tools/a
 
 DEVICE     = atmega328p
 CLOCK      = 16000000
-PROGRAMMER = avrisp
+#PROGRAMMER = avrisp    # use this for bootloader
+PROGRAMMER = usbtiny    # use this for programmer
 BAUD       = 115200
 
 OBJECTS    = main.o motion_control.o gcode.o spindle_control.o wiring_serial.o protocol.o stepper.o \

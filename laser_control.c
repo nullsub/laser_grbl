@@ -43,7 +43,7 @@ void laser_init() {
   
   // Setup laser enable pin.
   LASER_ENABLE_DDR |= (1 << LASER_ENABLE_BIT);
-  laser_disable();
+  laser_enable();
 }
 
 void laser_enable() {
