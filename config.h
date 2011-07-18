@@ -30,9 +30,9 @@
 
 #ifndef LASER_MODE
   // SPINDLE_MODE
-  #define STEPPERS_ENABLE_DDR     DDRB
-  #define STEPPERS_ENABLE_PORT    PORTB
-  #define STEPPERS_ENABLE_BIT         0
+  #define STEPPERS_DISABLE_DDR     DDRB
+  #define STEPPERS_DISABLE_PORT    PORTB
+  #define STEPPERS_DISABLE_BIT         0  
 
   #define STEPPING_DDR       DDRD
   #define STEPPING_PORT      PORTD
@@ -67,10 +67,10 @@
   // laser via a harware PWM on Timer0 which can output on either PD5 or PD6.
   
   #define LASER_OFF 0
-  
-  #define STEPPERS_ENABLE_DDR     DDRD
-  #define STEPPERS_ENABLE_PORT    PORTD
-  #define STEPPERS_ENABLE_BIT         2
+    
+  #define STEPPERS_DISABLE_DDR     DDRD
+  #define STEPPERS_DISABLE_PORT    PORTD
+  #define STEPPERS_DISABLE_BIT         2  
 
   #define STEPPING_DDR       DDRB
   #define STEPPING_PORT      PORTB

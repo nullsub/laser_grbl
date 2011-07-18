@@ -21,7 +21,8 @@
 #include <avr/io.h>
 #include "protocol.h"
 #include "gcode.h"
-#include "wiring_serial.h"
+#include "serial.h"
+#include "print.h"
 #include "settings.h"
 #include "config.h"
 #include <math.h>
@@ -55,7 +56,6 @@ static void status_message(int status_code) {
 
 void protocol_init() 
 {
-  beginSerial(BAUD_RATE);  
   printPgmString(PSTR("\r\nGrbl " GRBL_VERSION));
   printPgmString(PSTR("\r\n"));  
 }
@@ -72,13 +72,16 @@ uint8_t protocol_execute_line(char *line) {
 void protocol_process()
 {
   char c;
-  while((c = serialRead()) != -1) 
+  while((c = serial_read()) != SERIAL_NO_DATA) 
   {
     if((char_counter > 0) && ((c == '\n') || (c == '\r'))) {  // Line is complete. Then execute!
       line[char_counter] = 0; // treminate string
       status_message(protocol_execute_line(line));
       char_counter = 0; // reset line buffer index
-    } else if (c <= ' ') { // Throw away whitepace and control characters
+    } else if (c <= ' ') { 
+      // Throw away whitepace and control characters
+    } else if (char_counter >= LINE_BUFFER_SIZE-1) {
+      // Throw away any characters beyond the end of the line buffer
     } else if (c >= 'a' && c <= 'z') { // Upcase lowercase
       line[char_counter++] = c-'a'+'A';
     } else {

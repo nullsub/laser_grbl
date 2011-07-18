@@ -30,7 +30,6 @@
 #include "nuts_bolts.h"
 #include <avr/interrupt.h>
 #include "planner.h"
-#include "wiring_serial.h"
 #include "limits.h"
 #include "laser_control.h"
 
@@ -44,11 +43,7 @@
 
 #define MINIMUM_STEPS_PER_MINUTE 1200 // The stepper subsystem will never run slower than this, exept when sleeping
 
-#define ENABLE_STEPPER_DRIVER_INTERRUPT()  TIMSK1 |= (1<<OCIE1A)
-#define DISABLE_STEPPER_DRIVER_INTERRUPT() TIMSK1 &= ~(1<<OCIE1A)
-
-// real-time position in absolute steps
-static int32_t st_position[3];  
+static int32_t st_position[3];  // real-time position in absolute steps
 
 static block_t *current_block;  // A pointer to the block currently being traced
 
@@ -89,18 +84,23 @@ static void set_step_events_per_minute(uint32_t steps_per_minute);
 #endif
 
 void st_wake_up() {
-  STEPPERS_ENABLE_PORT |= (1<<STEPPERS_ENABLE_BIT);
-  ENABLE_STEPPER_DRIVER_INTERRUPT();  
+  // Enable steppers by resetting the stepper disable port
+  STEPPERS_DISABLE_PORT &= ~(1<<STEPPERS_DISABLE_BIT);
+  // Enable stepper driver interrupt
+  TIMSK1 |= (1<<OCIE1A);
 }
 
-void st_fall_asleep() {
-  STEPPERS_ENABLE_PORT &= ~(1<<STEPPERS_ENABLE_BIT);
-  DISABLE_STEPPER_DRIVER_INTERRUPT();
-  current_block = NULL;
+static void st_go_idle() {
+  // Disable steppers by setting stepper disable
+  STEPPERS_DISABLE_PORT |= (1<<STEPPERS_DISABLE_BIT);
+  // Disable stepper driver interrupt
+  TIMSK1 &= ~(1<<OCIE1A);
+  // current_block = NULL;
   #ifdef LASER_MODE  
     set_laser_intensity(LASER_OFF);
   #endif   
 }
+
 
 // Initializes the trapezoid generator from the current block. Called whenever a new 
 // block begins.
@@ -182,7 +182,7 @@ SIGNAL(TIMER1_COMPA_vect)
       counter_z = counter_x;
       step_events_completed = 0;
     } else {
-      st_fall_asleep();
+      st_go_idle();
     }    
   } 
 
@@ -268,7 +268,7 @@ void st_init()
 	// Configure directions of interface pins
   STEPPING_DDR   |= STEPPING_MASK;
   STEPPING_PORT = (STEPPING_PORT & ~STEPPING_MASK) | settings.invert_mask;
-  STEPPERS_ENABLE_DDR |= 1<<STEPPERS_ENABLE_BIT;
+  STEPPERS_DISABLE_DDR |= 1<<STEPPERS_DISABLE_BIT;
   
 	// waveform generation = 0100 = CTC
 	TCCR1B &= ~(1<<WGM13);
@@ -287,10 +287,9 @@ void st_init()
   
   set_step_events_per_minute(6000);
   trapezoid_tick_cycle_counter = 0;
-
-  st_fall_asleep();
-       
-  sei();
+  
+  // Start in the idle state
+  st_go_idle();
 }
 
 // Block until all buffered steps are executed
