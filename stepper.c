@@ -31,13 +31,13 @@
 #include <avr/interrupt.h>
 #include "planner.h"
 #include "wiring_serial.h"
-
+#include "limits.h"
+#include "laser_control.h"
 
 // Some useful constants
 #define STEP_MASK ((1<<X_STEP_BIT)|(1<<Y_STEP_BIT)|(1<<Z_STEP_BIT)) // All step bits
 #define DIRECTION_MASK ((1<<X_DIRECTION_BIT)|(1<<Y_DIRECTION_BIT)|(1<<Z_DIRECTION_BIT)) // All direction bits
 #define STEPPING_MASK (STEP_MASK | DIRECTION_MASK) // All stepping-related bits (step/direction)
-#define LIMIT_MASK ((1<<X_LIMIT_BIT)|(1<<Y_LIMIT_BIT)|(1<<Z_LIMIT_BIT)) // All limit bits
 
 #define TICKS_PER_MICROSECOND (F_CPU/1000000)
 #define CYCLES_PER_ACCELERATION_TICK ((TICKS_PER_MICROSECOND*1000000)/ACCELERATION_TICKS_PER_SECOND)
@@ -47,6 +47,9 @@
 #define ENABLE_STEPPER_DRIVER_INTERRUPT()  TIMSK1 |= (1<<OCIE1A)
 #define DISABLE_STEPPER_DRIVER_INTERRUPT() TIMSK1 &= ~(1<<OCIE1A)
 
+// real-time position in absolute steps
+static int32_t st_position[3];  
+
 static block_t *current_block;  // A pointer to the block currently being traced
 
 // Variables used by The Stepper Driver Interrupt
@@ -55,7 +58,7 @@ static int32_t counter_x,       // Counter variables for the bresenham line trac
                counter_y, 
                counter_z;       
 static uint32_t step_events_completed; // The number of step events executed in the current block
-static volatile int busy; // TRUE when SIG_OUTPUT_COMPARE1A is being serviced. Used to avoid retriggering that handler.
+static volatile int busy; // true when SIG_OUTPUT_COMPARE1A is being serviced. Used to avoid retriggering that handler.
 
 // Variables used by the trapezoid generation
 static uint32_t cycles_per_step_event;        // The number of machine cycles between each step event
@@ -80,28 +83,47 @@ static uint32_t trapezoid_adjusted_rate;      // The current rate of step_events
 //  The slope of acceleration is always +/- block->rate_delta and is applied at a constant rate by trapezoid_generator_tick()
 //  that is called ACCELERATION_TICKS_PER_SECOND times per second.
 
-void set_step_events_per_minute(uint32_t steps_per_minute);
+static void set_step_events_per_minute(uint32_t steps_per_minute);
+#ifdef LASER_MODE  
+  static void set_pwm_based_on_actual_speed();
+#endif
 
 void st_wake_up() {
+  STEPPERS_ENABLE_PORT |= (1<<STEPPERS_ENABLE_BIT);
   ENABLE_STEPPER_DRIVER_INTERRUPT();  
+}
+
+void st_fall_asleep() {
+  STEPPERS_ENABLE_PORT &= ~(1<<STEPPERS_ENABLE_BIT);
+  DISABLE_STEPPER_DRIVER_INTERRUPT();
+  current_block = NULL;
+  #ifdef LASER_MODE  
+    set_laser_intensity(LASER_OFF);
+  #endif   
 }
 
 // Initializes the trapezoid generator from the current block. Called whenever a new 
 // block begins.
-inline void trapezoid_generator_reset() {
+static void trapezoid_generator_reset() {
   trapezoid_adjusted_rate = current_block->initial_rate;  
   trapezoid_tick_cycle_counter = 0; // Always start a new trapezoid with a full acceleration tick
   set_step_events_per_minute(trapezoid_adjusted_rate);
+  #ifdef LASER_MODE  
+    set_pwm_based_on_actual_speed();
+  #endif  
 }
 
 // This is called ACCELERATION_TICKS_PER_SECOND times per second by the step_event
 // interrupt. It can be assumed that the trapezoid-generator-parameters and the
 // current_block stays untouched by outside handlers for the duration of this function call.
-inline void trapezoid_generator_tick() {     
+static void trapezoid_generator_tick() {     
   if (current_block) {
     if (step_events_completed < current_block->accelerate_until) {
       trapezoid_adjusted_rate += current_block->rate_delta;
       set_step_events_per_minute(trapezoid_adjusted_rate);
+      #ifdef LASER_MODE  
+        set_pwm_based_on_actual_speed();
+      #endif        
     } else if (step_events_completed > current_block->decelerate_after) {
       // NOTE: We will only reduce speed if the result will be > 0. This catches small
       // rounding errors that might leave steps hanging after the last trapezoid tick.
@@ -112,11 +134,17 @@ inline void trapezoid_generator_tick() {
         trapezoid_adjusted_rate = current_block->final_rate;
       }        
       set_step_events_per_minute(trapezoid_adjusted_rate);
+      #ifdef LASER_MODE  
+        set_pwm_based_on_actual_speed();
+      #endif        
     } else {
       // Make sure we cruise at exactly nominal rate
       if (trapezoid_adjusted_rate != current_block->nominal_rate) {
         trapezoid_adjusted_rate = current_block->nominal_rate;
         set_step_events_per_minute(trapezoid_adjusted_rate);
+        #ifdef LASER_MODE  
+          set_pwm_based_on_actual_speed();
+        #endif          
       }
     }
   }
@@ -138,7 +166,7 @@ SIGNAL(TIMER1_COMPA_vect)
   // exactly settings.pulse_microseconds microseconds.
   TCNT2 = -(((settings.pulse_microseconds-2)*TICKS_PER_MICROSECOND)/8);
 
-  busy = TRUE;
+  busy = true;
   sei(); // Re enable interrupts (normally disabled while inside an interrupt handler)
          // ((We re-enable interrupts in order for SIG_OVERFLOW2 to be able to be triggered 
          // at exactly the right time even if we occasionally spend a lot of time inside this handler.))
@@ -154,7 +182,7 @@ SIGNAL(TIMER1_COMPA_vect)
       counter_z = counter_x;
       step_events_completed = 0;
     } else {
-      DISABLE_STEPPER_DRIVER_INTERRUPT();
+      st_fall_asleep();
     }    
   } 
 
@@ -183,8 +211,34 @@ SIGNAL(TIMER1_COMPA_vect)
     }
   } else {
     out_bits = 0;
+    #ifdef LASER_MODE  
+      set_laser_intensity(LASER_OFF);
+    #endif 
   }          
   out_bits ^= settings.invert_mask;
+  
+  // keep track of absolute position
+  if ((out_bits >> X_STEP_BIT) & 1) {
+    if ((out_bits >> X_DIRECTION_BIT) & 1 ) {
+      st_position[X_AXIS] += 1;
+    } else {
+      st_position[X_AXIS] -= 1;
+    }
+  }
+  if ((out_bits >> Y_STEP_BIT) & 1) {
+    if ((out_bits >> Y_DIRECTION_BIT) & 1 ) {
+      st_position[Y_AXIS] += 1;
+    } else {
+      st_position[Y_AXIS] -= 1;
+    }
+  }
+  if ((out_bits >> Z_STEP_BIT) & 1) {
+    if ((out_bits >> Z_DIRECTION_BIT) & 1 ) {
+      st_position[Z_AXIS] += 1;
+    } else {
+      st_position[Z_AXIS] -= 1;
+    }
+  }  
   
   // In average this generates a trapezoid_generator_tick every CYCLES_PER_ACCELERATION_TICK by keeping track
   // of the number of elapsed cycles. The code assumes that step_events occur significantly more often than
@@ -195,7 +249,7 @@ SIGNAL(TIMER1_COMPA_vect)
     trapezoid_generator_tick();
   }
   
-  busy=FALSE;
+  busy=false;
 }
 
 // This interrupt is set up by SIG_OUTPUT_COMPARE1A when it sets the motor port bits. It resets
@@ -209,10 +263,11 @@ SIGNAL(TIMER2_OVF_vect)
 // Initialize and start the stepper motor subsystem
 void st_init()
 {
+  clear_vector(st_position);
+  
 	// Configure directions of interface pins
   STEPPING_DDR   |= STEPPING_MASK;
   STEPPING_PORT = (STEPPING_PORT & ~STEPPING_MASK) | settings.invert_mask;
-  LIMIT_DDR &= ~(LIMIT_MASK);
   STEPPERS_ENABLE_DDR |= 1<<STEPPERS_ENABLE_BIT;
   
 	// waveform generation = 0100 = CTC
@@ -231,12 +286,10 @@ void st_init()
   TIMSK2 |= (1<<TOIE2);      
   
   set_step_events_per_minute(6000);
-  DISABLE_STEPPER_DRIVER_INTERRUPT();  
   trapezoid_tick_cycle_counter = 0;
-  
-  // set enable pin     
-  STEPPERS_ENABLE_PORT |= 1<<STEPPERS_ENABLE_BIT;
-     
+
+  st_fall_asleep();
+       
   sei();
 }
 
@@ -248,7 +301,7 @@ void st_synchronize()
 
 // Configures the prescaler and ceiling of timer 1 to produce the given rate as accurately as possible.
 // Returns the actual number of cycles per interrupt
-uint32_t config_step_timer(uint32_t cycles)
+static uint32_t config_step_timer(uint32_t cycles)
 {
   uint16_t ceiling;
   uint16_t prescaler;
@@ -286,12 +339,30 @@ uint32_t config_step_timer(uint32_t cycles)
   return(actual_cycles);
 }
 
-void set_step_events_per_minute(uint32_t steps_per_minute) {
+static void set_step_events_per_minute(uint32_t steps_per_minute) {
   if (steps_per_minute < MINIMUM_STEPS_PER_MINUTE) { steps_per_minute = MINIMUM_STEPS_PER_MINUTE; }
   cycles_per_step_event = config_step_timer((TICKS_PER_MICROSECOND*1000000*60)/steps_per_minute);
 }
 
-void st_go_home()
-{
-  // Todo: Perform the homing cycle
+#ifdef LASER_MODE  
+  static void set_pwm_based_on_actual_speed() {
+    // double actual_speed_mm_per_min = 
+    //           (current_block->nominal_speed/current_block->nominal_rate)*trapezoid_adjusted_rate;
+    //uint8_t slowdown_in_pct_0to255 = (255*trapezoid_adjusted_rate)/current_block->nominal_rate;
+    //set_laser_intensity((current_block->nominal_laser_intensity*slowdown_in_pct_0to255)/255); 
+    
+    // run at constant intensity for now
+    set_laser_intensity(current_block->nominal_laser_intensity);  
+  }
+#endif
+
+void st_go_home() {
+  limits_go_home();  
+  plan_set_current_position(0,0,0);
+}
+
+void st_get_position( double *x, double *y, double *z) {
+  *x = st_position[X_AXIS]/settings.steps_per_mm[X_AXIS];
+  *y = st_position[Y_AXIS]/settings.steps_per_mm[Y_AXIS];
+  *z = st_position[Z_AXIS]/settings.steps_per_mm[Z_AXIS];
 }

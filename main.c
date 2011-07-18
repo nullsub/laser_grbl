@@ -21,12 +21,15 @@
 #include <avr/io.h>
 #include <avr/sleep.h>
 #include <util/delay.h>
+#include "config.h"
 #include "planner.h"
 #include "stepper.h"
 #include "spindle_control.h"
+#include "laser_control.h"
 #include "motion_control.h"
 #include "gcode.h"
-#include "serial_protocol.h"
+#include "protocol.h"
+#include "limits.h"
 
 #include "settings.h"
 #include "wiring_serial.h"
@@ -37,16 +40,21 @@
 
 int main(void)
 {
-  sp_init();        
+  protocol_init();        
   settings_init();  
   plan_init();      
-  st_init();        
-  spindle_init();   
-  gc_init();        
+  st_init();
+  #ifndef LASER_MODE     
+    spindle_init();
+  #else
+    laser_init();
+  #endif   
+  gc_init();
+  limits_init();  
                     
   for(;;){
     sleep_mode(); // Wait for it ...
-    sp_process(); // ... process the serial protocol
+    protocol_process(); // ... process the serial protocol
   }
   return 0;   /* never reached */
 }

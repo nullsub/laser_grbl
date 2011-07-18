@@ -22,7 +22,6 @@
    by Kramer, Proctor and Messina. */
 
 #include "gcode.h"
-#include <stdlib.h>
 #include <string.h>
 #include "nuts_bolts.h"
 #include <math.h>
@@ -30,13 +29,16 @@
 #include "motion_control.h"
 #include "spindle_control.h"
 #include "errno.h"
-#include "serial_protocol.h"
+#include "protocol.h"
+#include "config.h"
 
 #define MM_PER_INCH (25.4)
 
 #define NEXT_ACTION_DEFAULT 0
 #define NEXT_ACTION_DWELL 1
 #define NEXT_ACTION_GO_HOME 2
+#define NEXT_ACTION_SET_COORDINATE_OFFSET 3
+#define NEXT_ACTION_EMERGENCY_STOP 4
 
 #define MOTION_MODE_SEEK 0 // G0 
 #define MOTION_MODE_LINEAR 1 // G1
@@ -63,11 +65,19 @@ typedef struct {
   uint8_t inches_mode;             /* 0 = millimeter mode, 1 = inches mode {G20, G21} */
   uint8_t absolute_mode;           /* 0 = relative motion, 1 = absolute motion {G90, G91} */
   uint8_t program_flow;
-  int spindle_direction;
+  #ifndef LASER_MODE 
+    int8_t spindle_direction;
+  #else
+    int8_t laser_enable;
+  #endif
   double feed_rate, seek_rate;     /* Millimeters/second */
   double position[3];              /* Where the interpreter considers the tool to be at this point in the code */
   uint8_t tool;
-  int16_t spindle_speed;           /* RPM/100 */
+  #ifndef LASER_MODE 
+    int16_t spindle_speed;         /* RPM/100 */
+  #else
+    int16_t nominal_laser_intensity;
+  #endif  
   uint8_t plane_axis_0, 
           plane_axis_1, 
           plane_axis_2;            // The axes of the selected plane  
@@ -76,14 +86,9 @@ static parser_state_t gc;
 
 #define FAIL(status) gc.status_code = status;
 
-int read_double(char *line,               //  <- string: line of RS274/NGC code being processed
-                     int *char_counter,        //  <- pointer to a counter for position on the line 
-                     double *double_ptr); //  <- pointer to double to be read                  
+static int next_statement(char *letter, double *double_ptr, char *line, uint8_t *char_counter);
 
-int next_statement(char *letter, double *double_ptr, char *line, int *char_counter);
-
-
-void select_plane(uint8_t axis_0, uint8_t axis_1, uint8_t axis_2) 
+static void select_plane(uint8_t axis_0, uint8_t axis_1, uint8_t axis_2) 
 {
   gc.plane_axis_0 = axis_0;
   gc.plane_axis_1 = axis_1;
@@ -95,16 +100,20 @@ void gc_init() {
   gc.feed_rate = settings.default_feed_rate/60;
   gc.seek_rate = settings.default_seek_rate/60;
   select_plane(X_AXIS, Y_AXIS, Z_AXIS);
-  gc.absolute_mode = TRUE;
+  gc.absolute_mode = true;
+  #ifdef LASER_MODE 
+    gc.nominal_laser_intensity = LASER_OFF;
+  #endif    
 }
 
-inline float to_millimeters(double value) {
+static float to_millimeters(double value) {
   return(gc.inches_mode ? (value * MM_PER_INCH) : value);
 }
 
+#ifdef __AVR_ATmega328P__        
 // Find the angle in radians of deviance from the positive y axis. negative angles to the left of y-axis, 
 // positive to the right.
-double theta(double x, double y)
+static double theta(double x, double y)
 {
   double theta = atan(x/fabs(y));
   if (y>0) {
@@ -118,18 +127,19 @@ double theta(double x, double y)
     }
   }
 }
+#endif
 
 // Executes one line of 0-terminated G-Code. The line is assumed to contain only uppercase
 // characters and signed floating point values (no whitespace).
 uint8_t gc_execute_line(char *line) {
-  int char_counter = 0;  
+  uint8_t char_counter = 0;  
   char letter;
   double value;
   double unit_converted_value;
   double inverse_feed_rate = -1; // negative inverse_feed_rate means no inverse_feed_rate specified
-  int radius_mode = FALSE;
+  int radius_mode = false;
   
-  uint8_t absolute_override = FALSE;          /* 1 = absolute motion for this block only {G53} */
+  uint8_t absolute_override = false;          /* 1 = absolute motion for this block only {G53} */
   uint8_t next_action = NEXT_ACTION_DEFAULT;  /* The action that will be taken by the parsed line */
   
   double target[3], offset[3];  
@@ -140,27 +150,12 @@ uint8_t gc_execute_line(char *line) {
   clear_vector(target);
   clear_vector(offset);
 
-  gc.status_code = GCSTATUS_OK;
+  gc.status_code = STATUS_OK;
   
   // Disregard comments and block delete
   if (line[0] == '(') { return(gc.status_code); }
   if (line[0] == '/') { char_counter++; } // ignore block delete  
   
-  // If the line starts with an '$' it is a configuration-command
-  if (line[0] == '$') { 
-    // Parameter lines are on the form '$4=374.3' or '$' to dump current settings
-    char_counter = 1;
-    if(line[char_counter] == 0) { settings_dump(); return(GCSTATUS_OK); }
-    read_double(line, &char_counter, &p);
-    if(line[char_counter++] != '=') { return(GCSTATUS_UNSUPPORTED_STATEMENT); }
-    read_double(line, &char_counter, &value);
-    if(line[char_counter] != 0) { return(GCSTATUS_UNSUPPORTED_STATEMENT); }
-    settings_store_setting(p, value);
-    return(gc.status_code);
-  }
-  
-  /* We'll handle this as g-code. First: parse all statements */
-
   // Pass 1: Commands
   while(next_statement(&letter, &value, line, &char_counter)) {
     int_value = trunc(value);
@@ -177,16 +172,17 @@ uint8_t gc_execute_line(char *line) {
         case 17: select_plane(X_AXIS, Y_AXIS, Z_AXIS); break;
         case 18: select_plane(X_AXIS, Z_AXIS, Y_AXIS); break;
         case 19: select_plane(Y_AXIS, Z_AXIS, X_AXIS); break;
-        case 20: gc.inches_mode = TRUE; break;
-        case 21: gc.inches_mode = FALSE; break;
+        case 20: gc.inches_mode = true; break;
+        case 21: gc.inches_mode = false; break;
         case 28: case 30: next_action = NEXT_ACTION_GO_HOME; break;
-        case 53: absolute_override = TRUE; break;
-        case 80: gc.motion_mode = MOTION_MODE_CANCEL; break;
-        case 90: gc.absolute_mode = TRUE; break;
-        case 91: gc.absolute_mode = FALSE; break;
-        case 93: gc.inverse_feed_rate_mode = TRUE; break;
-        case 94: gc.inverse_feed_rate_mode = FALSE; break;
-        default: FAIL(GCSTATUS_UNSUPPORTED_STATEMENT);
+        case 53: absolute_override = true; break;
+        case 80: gc.motion_mode = MOTION_MODE_CANCEL; break;        
+        case 90: gc.absolute_mode = true; break;
+        case 91: gc.absolute_mode = false; break;
+        case 92: next_action = NEXT_ACTION_SET_COORDINATE_OFFSET; break;        
+        case 93: gc.inverse_feed_rate_mode = true; break;
+        case 94: gc.inverse_feed_rate_mode = false; break;
+        default: FAIL(STATUS_UNSUPPORTED_STATEMENT);
       }
       break;
       
@@ -194,10 +190,17 @@ uint8_t gc_execute_line(char *line) {
       switch(int_value) {
         case 0: case 1: gc.program_flow = PROGRAM_FLOW_PAUSED; break;
         case 2: case 30: case 60: gc.program_flow = PROGRAM_FLOW_COMPLETED; break;
-        case 3: gc.spindle_direction = 1; break;
-        case 4: gc.spindle_direction = -1; break;
-        case 5: gc.spindle_direction = 0; break;
-        default: FAIL(GCSTATUS_UNSUPPORTED_STATEMENT);
+        #ifndef LASER_MODE 
+          case 3: gc.spindle_direction = 1; break;
+          case 4: gc.spindle_direction = -1; break;
+          case 5: gc.spindle_direction = 0; break;
+        #else
+          case 3: gc.laser_enable = 1; break;
+          case 4: gc.laser_enable = 1; break;
+          case 5: gc.laser_enable = 0; break;        
+        #endif
+        case 112: next_action = NEXT_ACTION_EMERGENCY_STOP; break;
+        default: FAIL(STATUS_UNSUPPORTED_STATEMENT);
       }            
       break;
       case 'T': gc.tool = trunc(value); break;
@@ -230,8 +233,13 @@ uint8_t gc_execute_line(char *line) {
       break;
       case 'I': case 'J': case 'K': offset[letter-'I'] = unit_converted_value; break;
       case 'P': p = value; break;
-      case 'R': r = unit_converted_value; radius_mode = TRUE; break;
-      case 'S': gc.spindle_speed = value; break;
+      case 'R': r = unit_converted_value; radius_mode = true; break;
+      #ifndef LASER_MODE
+        case 'S': gc.spindle_speed = value; break;
+      #else
+        // this only applies to the following moves
+        case 'S': gc.nominal_laser_intensity = value; break;      
+      #endif
       case 'X': case 'Y': case 'Z':
       if (gc.absolute_mode || absolute_override) {
         target[letter - 'X'] = unit_converted_value;
@@ -245,26 +253,45 @@ uint8_t gc_execute_line(char *line) {
   // If there were any errors parsing this line, we will return right away with the bad news
   if (gc.status_code) { return(gc.status_code); }
     
-  // Update spindle state
-  if (gc.spindle_direction) {
+  #ifndef LASER_MODE  
+    // Update spindle state
     spindle_run(gc.spindle_direction, gc.spindle_speed);
-  } else {
-    spindle_stop();
-  }
+  #endif
   
   // Perform any physical actions
   switch (next_action) {
-    case NEXT_ACTION_GO_HOME: mc_go_home(); break;
-    case NEXT_ACTION_DWELL: mc_dwell(trunc(p*1000)); break;
+    case NEXT_ACTION_GO_HOME: mc_go_home(); clear_vector(gc.position); break;
+    case NEXT_ACTION_DWELL: mc_dwell(trunc(p*1000)); break;   
+    case NEXT_ACTION_SET_COORDINATE_OFFSET: 
+    mc_set_current_position(target[X_AXIS], target[Y_AXIS], target[Z_AXIS]);
+    break;
+    case NEXT_ACTION_EMERGENCY_STOP:
+    mc_emergency_stop();
+    // captain, we have a new target!
+    st_get_position(&gc.position[X_AXIS], &gc.position[Y_AXIS], &gc.position[Z_AXIS]);
+    mc_set_current_position(gc.position[X_AXIS], gc.position[Y_AXIS], gc.position[Z_AXIS]);
+    mc_line(target[X_AXIS], target[Y_AXIS], target[Z_AXIS], gc.seek_rate, false, LASER_OFF);
+    //return;  // totally bail
+    break;
     case NEXT_ACTION_DEFAULT: 
     switch (gc.motion_mode) {
       case MOTION_MODE_CANCEL: break;
       case MOTION_MODE_SEEK:
-      mc_line(target[X_AXIS], target[Y_AXIS], target[Z_AXIS], gc.seek_rate, FALSE);
+      #ifndef LASER_MODE  
+        mc_line(target[X_AXIS], target[Y_AXIS], target[Z_AXIS], gc.seek_rate, false);
+      #else
+        mc_line(target[X_AXIS], target[Y_AXIS], target[Z_AXIS], gc.seek_rate, false, LASER_OFF);
+      #endif
       break;
       case MOTION_MODE_LINEAR:
-      mc_line(target[X_AXIS], target[Y_AXIS], target[Z_AXIS], 
-        (gc.inverse_feed_rate_mode) ? inverse_feed_rate : gc.feed_rate, gc.inverse_feed_rate_mode);
+      #ifndef LASER_MODE  
+        mc_line(target[X_AXIS], target[Y_AXIS], target[Z_AXIS], 
+          (gc.inverse_feed_rate_mode) ? inverse_feed_rate : gc.feed_rate, gc.inverse_feed_rate_mode);
+      #else
+        mc_line(target[X_AXIS], target[Y_AXIS], target[Z_AXIS], 
+          (gc.inverse_feed_rate_mode) ? inverse_feed_rate : gc.feed_rate, gc.inverse_feed_rate_mode,
+          gc.nominal_laser_intensity);
+      #endif      
       break;
 #ifdef __AVR_ATmega328P__
       case MOTION_MODE_CW_ARC: case MOTION_MODE_CCW_ARC:
@@ -327,7 +354,7 @@ uint8_t gc_execute_line(char *line) {
         double h_x2_div_d = -sqrt(4 * r*r - x*x - y*y)/hypot(x,y); // == -(h * 2 / d)
         // If r is smaller than d, the arc is now traversing the complex plane beyond the reach of any
         // real CNC, and thus - for practical reasons - we will terminate promptly:
-        if(isnan(h_x2_div_d)) { FAIL(GCSTATUS_FLOATING_POINT_ERROR); return(gc.status_code); }
+        if(isnan(h_x2_div_d)) { FAIL(STATUS_FLOATING_POINT_ERROR); return(gc.status_code); }
         // Invert the sign of h_x2_div_d if the circle is counter clockwise (see sketch below)
         if (gc.motion_mode == MOTION_MODE_CCW_ARC) { h_x2_div_d = -h_x2_div_d; }
         
@@ -389,13 +416,24 @@ uint8_t gc_execute_line(char *line) {
       double radius = hypot(offset[gc.plane_axis_0], offset[gc.plane_axis_1]);
       // Calculate the motion along the depth axis of the helix
       double depth = target[gc.plane_axis_2]-gc.position[gc.plane_axis_2];
-      // Trace the arc
-      mc_arc(theta_start, angular_travel, radius, depth, gc.plane_axis_0, gc.plane_axis_1, gc.plane_axis_2, 
-        (gc.inverse_feed_rate_mode) ? inverse_feed_rate : gc.feed_rate, gc.inverse_feed_rate_mode,
-        gc.position);
-      // Finish off with a line to make sure we arrive exactly where we think we are
-      mc_line(target[X_AXIS], target[Y_AXIS], target[Z_AXIS], 
-        (gc.inverse_feed_rate_mode) ? inverse_feed_rate : gc.feed_rate, gc.inverse_feed_rate_mode);
+      #ifndef LASER_MODE  
+        // Trace the arc
+        mc_arc(theta_start, angular_travel, radius, depth, gc.plane_axis_0, gc.plane_axis_1, gc.plane_axis_2, 
+          (gc.inverse_feed_rate_mode) ? inverse_feed_rate : gc.feed_rate, gc.inverse_feed_rate_mode,
+          gc.position);
+        // Finish off with a line to make sure we arrive exactly where we think we are
+        mc_line(target[X_AXIS], target[Y_AXIS], target[Z_AXIS], 
+          (gc.inverse_feed_rate_mode) ? inverse_feed_rate : gc.feed_rate, gc.inverse_feed_rate_mode);
+      #else
+        // Trace the arc
+        mc_arc(theta_start, angular_travel, radius, depth, gc.plane_axis_0, gc.plane_axis_1, gc.plane_axis_2, 
+          (gc.inverse_feed_rate_mode) ? inverse_feed_rate : gc.feed_rate, gc.inverse_feed_rate_mode,
+          gc.position, gc.nominal_laser_intensity);
+        // Finish off with a line to make sure we arrive exactly where we think we are
+        mc_line(target[X_AXIS], target[Y_AXIS], target[Z_AXIS], 
+          (gc.inverse_feed_rate_mode) ? inverse_feed_rate : gc.feed_rate, gc.inverse_feed_rate_mode,
+          gc.nominal_laser_intensity);
+      #endif       
       break;
 #endif      
     }    
@@ -411,37 +449,21 @@ uint8_t gc_execute_line(char *line) {
 // Parses the next statement and leaves the counter on the first character following
 // the statement. Returns 1 if there was a statements, 0 if end of string was reached
 // or there was an error (check state.status_code).
-int next_statement(char *letter, double *double_ptr, char *line, int *char_counter) {
+static int next_statement(char *letter, double *double_ptr, char *line, uint8_t *char_counter) {
   if (line[*char_counter] == 0) {
     return(0); // No more statements
   }
   
   *letter = line[*char_counter];
   if((*letter < 'A') || (*letter > 'Z')) {
-    FAIL(GCSTATUS_EXPECTED_COMMAND_LETTER);
+    FAIL(STATUS_EXPECTED_COMMAND_LETTER);
     return(0);
   }
   (*char_counter)++;
   if (!read_double(line, char_counter, double_ptr)) {
+    FAIL(STATUS_BAD_NUMBER_FORMAT); 
     return(0);
   };
-  return(1);
-}
-
-int read_double(char *line,               //!< string: line of RS274/NGC code being processed
-                     int *char_counter,   //!< pointer to a counter for position on the line 
-                     double *double_ptr)  //!< pointer to double to be read                  
-{
-  char *start = line + *char_counter;
-  char *end;
-  
-  *double_ptr = strtod(start, &end);
-  if(end == start) { 
-    FAIL(GCSTATUS_BAD_NUMBER_FORMAT); 
-    return(0); 
-  };
-
-  *char_counter = end - line;
   return(1);
 }
 

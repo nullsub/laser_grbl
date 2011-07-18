@@ -39,8 +39,8 @@
 
 unsigned char rx_buffer[RX_BUFFER_SIZE];
 
-int rx_buffer_head = 0;
-int rx_buffer_tail = 0;
+uint8_t rx_buffer_head = 0;
+uint8_t rx_buffer_tail = 0;
 
 void beginSerial(long baud)
 {

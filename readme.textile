@@ -1,4 +1,12 @@
-h1. Grbl - An embedded g-code interpreter and motion-controller for the Arduino/AVR328 microcontroller
+
+h2. Lasersaur - Open Source Laser cutter
+
+This is the firmware we use for the Lasersaur. It's a slightly modified version of grbl. It's what runs on an Arduino Uno and takes g-code files to controls the stepper motors accordingly.
+
+How to get this firmware onto an Arduino Uno? There is a makefile that will do the trick. Edit the Makefile and follow the instruction in it. You will need a USB cable and the Arduino IDE.
+
+
+h2. Grbl - An embedded g-code interpreter and motion-controller for the Arduino/AVR328 microcontroller
     
 Grbl is a no-compromise, high performance, low cost alternative to parallel-port-based motion control for CNC milling. It will run on a vanilla Arduino (Duemillanove/Uno) as long as it sports an Atmega 328. 
 

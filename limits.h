@@ -1,5 +1,5 @@
 /*
-  spindle_control.h - spindle control methods
+  limits.h - code pertaining to limit-switches and performing the homing cycle
   Part of Grbl
 
   Copyright (c) 2009-2011 Simen Svale Skogsrud
@@ -18,19 +18,13 @@
   along with Grbl.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef spindle_control_h
-#define spindle_control_h 
+#ifndef limits_h
+#define limits_h 
 
-#include "config.h"
+// initialize the limits module
+void limits_init();
 
-#ifndef LASER_MODE
-
-#include <avr/io.h>
-
-void spindle_init();
-void spindle_run(int direction, uint32_t rpm);
-void spindle_stop();
-
-#endif
+// perform the homing cycle
+void limits_go_home();
 
 #endif

@@ -23,21 +23,34 @@
 
 #include <avr/io.h>
 #include "planner.h"
+#include "config.h"
+
+// NOTE: Although the following functions structurally belongs in this module, there is nothing to do but
+// to forward the request to the planner.
 
 // Execute linear motion in absolute millimeter coordinates. Feed rate given in millimeters/second
 // unless invert_feed_rate is true. Then the feed_rate means that the motion should be completed in
 // (1 minute)/feed_rate time.
-#define mc_line(x, y, z, feed_rate, invert_feed_rate) plan_buffer_line(x, y, z, feed_rate, invert_feed_rate) 
-// NOTE: Although this function structurally belongs in this module, there is nothing to do but
-// to forward the request to the planner. For efficiency the function is implemented with a macro.
+#ifndef LASER_MODE  
+  #define mc_line(x, y, z, feed_rate, invert_feed_rate) plan_buffer_line(x, y, z, feed_rate, invert_feed_rate) 
+#else
+  #define mc_line(x, y, z, feed_rate, invert_feed_rate, nominal_laser_intensity) plan_buffer_line(x, y, z, feed_rate, invert_feed_rate, nominal_laser_intensity) 
+#endif
+
+#define mc_set_current_position(x, y, z) plan_set_current_position(x, y, z) 
 
 #ifdef __AVR_ATmega328P__
 // Execute an arc. theta == start angle, angular_travel == number of radians to go along the arc,
 // positive angular_travel means clockwise, negative means counterclockwise. Radius == the radius of the
 // circle in millimeters. axis_1 and axis_2 selects the circle plane in tool space. Stick the remaining
 // axis in axis_l which will be the axis for linear travel if you are tracing a helical motion.
-void mc_arc(double theta, double angular_travel, double radius, double linear_travel, int axis_1, int axis_2, 
-  int axis_linear, double feed_rate, int invert_feed_rate, double *position);
+#ifndef LASER_MODE  
+  void mc_arc(double theta, double angular_travel, double radius, double linear_travel, int axis_1, int axis_2, 
+    int axis_linear, double feed_rate, int invert_feed_rate, double *position);
+#else
+  void mc_arc(double theta, double angular_travel, double radius, double linear_travel, int axis_1, int axis_2, 
+    int axis_linear, double feed_rate, int invert_feed_rate, double *position, int nominal_laser_intensity);
+#endif
 #endif
   
 // Dwell for a couple of time units
@@ -45,5 +58,8 @@ void mc_dwell(uint32_t milliseconds);
 
 // Send the tool home (not implemented)
 void mc_go_home();
+
+// stop all commands immediately
+void mc_emergency_stop();
 
 #endif
