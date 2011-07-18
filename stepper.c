@@ -90,7 +90,7 @@ void st_wake_up() {
   TIMSK1 |= (1<<OCIE1A);
 }
 
-static void st_go_idle() {
+void st_go_idle() {
   // Disable steppers by setting stepper disable
   STEPPERS_DISABLE_PORT |= (1<<STEPPERS_DISABLE_BIT);
   // Disable stepper driver interrupt

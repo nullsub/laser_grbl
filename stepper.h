@@ -42,6 +42,9 @@ void st_go_home();
 // to notify the subsystem that it is time to go to work.
 void st_wake_up();
 
+// make the stepper subsystem fall asleep
+void st_go_idle();
+
 // Get the actual position of the head in mm.
 // This is as acurate as an open loop system can be.
 void st_get_position( double *x, double *y, double *z);
