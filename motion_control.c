@@ -27,7 +27,7 @@
 #include "nuts_bolts.h"
 #include "stepper.h"
 #include "planner.h"
-#include "wiring_serial.h"
+//#include "serial.h"
 #include "laser_control.h"
 
 
@@ -129,7 +129,7 @@ void mc_go_home() {
 }
 
 void mc_emergency_stop() {
-  st_fall_asleep();           // stop all motion immediately
+  st_go_idle();               // stop all motion immediately
   plan_reset_block_buffer();  // drop all queued commands
 }
 

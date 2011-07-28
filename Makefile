@@ -53,8 +53,9 @@ PROGRAMMER = avrisp    # use this for bootloader
 # PROGRAMMER = usbtiny    # use this for programmer
 BAUD       = 115200
 
-OBJECTS    = main.o motion_control.o gcode.o spindle_control.o wiring_serial.o protocol.o stepper.o \
-             eeprom.o settings.o planner.o nuts_bolts.o limits.o laser_control.o
+OBJECTS    = main.o motion_control.o gcode.o spindle_control.o serial.o protocol.o stepper.o \
+             eeprom.o settings.o planner.o nuts_bolts.o limits.o print.o laser_control.o
+
 # FUSES      = -U hfuse:w:0xd9:m -U lfuse:w:0x24:m
 # FUSES      = -U hfuse:w:0xd2:m -U lfuse:w:0xff:m   #atmega328
 # FUSES      = -U lfuse:w:0xdf:m -U hfuse:w:0xdf:m   #amega168

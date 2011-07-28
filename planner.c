@@ -28,7 +28,8 @@
 #include "nuts_bolts.h"
 #include "stepper.h"
 #include "settings.h"
-#include "wiring_serial.h"
+//#include "serial.h"
+#include "config.h"
 
 // The number of linear motions that can be in the plan at any give time
 #ifdef __AVR_ATmega328P__
@@ -206,13 +207,15 @@ static void planner_forward_pass_kernel(block_t *previous, block_t *current, blo
   // If the previous block is an acceleration block, but it is not long enough to 
   // complete the full speed change within the block, we need to adjust out entry
   // speed accordingly. Remember current->entry_factor equals the exit factor of 
-  // the previous block.
-  if(previous->entry_factor < current->entry_factor) {
-    double max_entry_speed = max_allowable_speed(-settings.acceleration,
-      current->nominal_speed*previous->entry_factor, previous->millimeters);
-    double max_entry_factor = max_entry_speed/current->nominal_speed;
-    if (max_entry_factor < current->entry_factor) {
-      current->entry_factor = max_entry_factor;
+  // the previous block.¨
+  if(previous) {
+    if(previous->entry_factor < current->entry_factor) {
+      double max_entry_speed = max_allowable_speed(-settings.acceleration,
+        current->nominal_speed*previous->entry_factor, previous->millimeters);
+      double max_entry_factor = max_entry_speed/current->nominal_speed;
+      if (max_entry_factor < current->entry_factor) {
+        current->entry_factor = max_entry_factor;
+      }
     }
   }
 }
@@ -309,14 +312,15 @@ block_t *plan_get_current_block() {
   return(&block_buffer[block_buffer_tail]);
 }
 
-// Add a new linear movement to the buffer. steps_x, _y and _z is the absolute position in 
-// mm. Microseconds specify how many microseconds the move should take to perform. To aid acceleration
-// calculation the caller must also provide the physical length of the line in millimeters.
+// Add a new linear movement to the buffer. x, y and z is the signed, absolute target position in 
+// millimaters. Feed rate specifies the speed of the motion. If feed rate is inverted, the feed
+// rate is taken to mean "frequency" and would complete the operation in 1/feed_rate minutes.
 #ifndef LASER_MODE  
   void plan_buffer_line(double x, double y, double z, double feed_rate, int invert_feed_rate) {
 #else
   void plan_buffer_line(double x, double y, double z, double feed_rate, int invert_feed_rate, int nominal_laser_intensity) {
 #endif
+
   // The target position of the tool in absolute steps
 
   // Calculate target position in absolute steps
@@ -367,6 +371,10 @@ block_t *plan_get_current_block() {
     block->nominal_laser_intensity = nominal_laser_intensity;
   #endif    
 
+  // This is a temporary fix to avoid a situation where very low nominal_speeds would be rounded 
+  // down to zero and cause a division by zero. TODO: Grbl deserves a less patchy fix for this problem
+  if (block->nominal_speed < 60.0) { block->nominal_speed = 60.0; }
+  
   // Compute the acceleration rate for the trapezoid generator. Depending on the slope of the line
   // average travel per step event changes. For a line along one axis the travel per step event
   // is equal to the travel/step in the particular axis. For a 45 degree line the steppers of both

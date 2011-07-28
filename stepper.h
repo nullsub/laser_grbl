@@ -42,10 +42,8 @@ void st_go_home();
 // to notify the subsystem that it is time to go to work.
 void st_wake_up();
 
-// Opposite of wake_up.
-// Disable the stepper interrupt and stepper enable bits.
-// This is also usefull for emergency stops.
-void st_fall_asleep();
+// make the stepper subsystem fall asleep
+void st_go_idle();
 
 // Get the actual position of the head in mm.
 // This is as acurate as an open loop system can be.

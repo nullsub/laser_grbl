@@ -23,9 +23,10 @@
 #include "nuts_bolts.h"
 #include "settings.h"
 #include "eeprom.h"
-#include "wiring_serial.h"
+#include "print.h"
 #include <avr/pgmspace.h>
 #include "protocol.h"
+#include "config.h"
 
 settings_t settings;
 
@@ -47,11 +48,12 @@ typedef struct {
 #define DEFAULT_Z_STEPS_PER_MM 32.80839895    //microsteps/mm
 #define DEFAULT_STEP_PULSE_MICROSECONDS 5
 #define DEFAULT_MM_PER_ARC_SEGMENT 0.1
-#define DEFAULT_RAPID_FEEDRATE 25000.0        // in millimeters per minute
+#define DEFAULT_RAPID_FEEDRATE 20000.0        // in millimeters per minute
 #define DEFAULT_FEEDRATE 5000.0
-#define DEFAULT_ACCELERATION 1500.0
-#define DEFAULT_MAX_JERK 15.0
+#define DEFAULT_ACCELERATION 500.0           // super smooth
+#define DEFAULT_MAX_JERK 1000.0              // and basically no jerk limitation
 #define DEFAULT_STEPPING_INVERT_MASK 28      //B00011100 inverting the axes' direction
+
 
 void settings_reset() {
   settings.steps_per_mm[X_AXIS] = DEFAULT_X_STEPS_PER_MM;
