@@ -50,8 +50,8 @@ typedef struct {
 #define DEFAULT_MM_PER_ARC_SEGMENT 0.1
 #define DEFAULT_RAPID_FEEDRATE 20000.0        // in millimeters per minute
 #define DEFAULT_FEEDRATE 5000.0
-#define DEFAULT_ACCELERATION 1500.0
-#define DEFAULT_MAX_JERK 15.0
+#define DEFAULT_ACCELERATION 500.0           // super smooth
+#define DEFAULT_MAX_JERK 1000.0              // and basically no jerk limitation
 #define DEFAULT_STEPPING_INVERT_MASK 28      //B00011100 inverting the axes' direction
 
 
