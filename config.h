@@ -21,7 +21,7 @@
 #ifndef config_h
 #define config_h
 
-#define BAUD_RATE 9600
+#define BAUD_RATE 57600
 
 // Enable laser mode.
 // This will assume a laser head instead of a spindle.
