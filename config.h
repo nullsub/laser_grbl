@@ -70,7 +70,16 @@
     
   #define STEPPERS_DISABLE_DDR     DDRD
   #define STEPPERS_DISABLE_PORT    PORTD
-  #define STEPPERS_DISABLE_BIT         2  
+  #define STEPPERS_DISABLE_BIT      7
+  
+  #define LIMIT_OVERWRITE_DDR     DDRD
+  #define LIMIT_OVERWRITE_PORT    PORTD
+  #define LIMIT_OVERWRITE_BIT      7
+    
+  #define LIMIT_DDR      DDRD
+  #define LIMIT_PORT     PORTD  
+  #define LIMIT_BIT       4
+  #define DOOR_BIT        5
 
   #define STEPPING_DDR       DDRB
   #define STEPPING_PORT      PORTB
@@ -81,15 +90,15 @@
   #define Y_DIRECTION_BIT      4
   #define Z_DIRECTION_BIT      5
 
-  #define LIMIT_DDR      DDRC
-  #define LIMIT_PORT     PORTC
-  #define LIMIT_PIN      PINC
-  #define X_LIMIT_BIT          0
-  // #define X2_LIMIT_BIT      1
-  #define Y_LIMIT_BIT          2
-  // #define Y2_LIMIT_BIT      3
-  #define DOOR_BIT             4
-  #define Z_LIMIT_BIT          5  // actually we don't have a z-axis, this is extra-gpio-4
+  // #define LIMIT_DDR      DDRC
+  // #define LIMIT_PORT     PORTC
+  // #define LIMIT_PIN      PINC
+  // #define X_LIMIT_BIT          0
+  // // #define X2_LIMIT_BIT      1
+  // #define Y_LIMIT_BIT          2
+  // // #define Y2_LIMIT_BIT      3
+  // #define DOOR_BIT             4
+  // #define Z_LIMIT_BIT          5  // actually we don't have a z-axis, this is extra-gpio-4
 
   // laser pwm pin is PD6 (hardware PWM for timer0)
   // no need to set the following
@@ -97,9 +106,9 @@
   // #define LASER_PWM_PORT  PORTD
   // #define LASER_PWM_PIN  6
     
-  #define LASER_ENABLE_DDR DDRD
-  #define LASER_ENABLE_PORT PORTD
-  #define LASER_ENABLE_BIT 7
+  // #define LASER_ENABLE_DDR DDRD
+  // #define LASER_ENABLE_PORT PORTD
+  // #define LASER_ENABLE_BIT 7
   
   // increased from 40 to 80 for smoother acc/deceleration 
   // in the 10000-25000 mm/min range

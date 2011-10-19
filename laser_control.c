@@ -42,17 +42,17 @@ void laser_init() {
   TCCR0B |= (1 << CS00);    // prescaler to 1, PWMfreq = 16000/(2*256*1) = 31.25kH
   
   // Setup laser enable pin.
-  LASER_ENABLE_DDR |= (1 << LASER_ENABLE_BIT);
-  laser_enable();
+  // LASER_ENABLE_DDR |= (1 << LASER_ENABLE_BIT);
+  // laser_enable();
 }
 
 void laser_enable() {
   // sinking the pin enables the laser
-  LASER_ENABLE_PORT &= ~(1<<LASER_ENABLE_BIT);
+  // LASER_ENABLE_PORT &= ~(1<<LASER_ENABLE_BIT);
 }
 
 void laser_disable() {
-  LASER_ENABLE_PORT |= 1<<LASER_ENABLE_BIT;
+  // LASER_ENABLE_PORT |= 1<<LASER_ENABLE_BIT;
 }
 
 void set_laser_intensity(uint8_t intensity) {

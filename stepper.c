@@ -84,15 +84,11 @@ static void set_step_events_per_minute(uint32_t steps_per_minute);
 #endif
 
 void st_wake_up() {
-  // Enable steppers by resetting the stepper disable port
-  STEPPERS_DISABLE_PORT &= ~(1<<STEPPERS_DISABLE_BIT);
   // Enable stepper driver interrupt
   TIMSK1 |= (1<<OCIE1A);
 }
 
 void st_go_idle() {
-  // Disable steppers by setting stepper disable
-  STEPPERS_DISABLE_PORT |= (1<<STEPPERS_DISABLE_BIT);
   // Disable stepper driver interrupt
   TIMSK1 &= ~(1<<OCIE1A);
   // current_block = NULL;
@@ -268,7 +264,6 @@ void st_init()
 	// Configure directions of interface pins
   STEPPING_DDR   |= STEPPING_MASK;
   STEPPING_PORT = (STEPPING_PORT & ~STEPPING_MASK) | settings.invert_mask;
-  STEPPERS_DISABLE_DDR |= 1<<STEPPERS_DISABLE_BIT;
   
 	// waveform generation = 0100 = CTC
 	TCCR1B &= ~(1<<WGM13);
