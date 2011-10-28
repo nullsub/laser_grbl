@@ -24,6 +24,7 @@
 #include "settings.h"
 #include "nuts_bolts.h"
 #include "config.h"
+#include "limits.h"
 
 void limits_init() {
   LIMIT_DDR &= ~(LIMIT_MASK);

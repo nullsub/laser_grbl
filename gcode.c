@@ -29,7 +29,6 @@
 #include <math.h>
 #include "settings.h"
 #include "motion_control.h"
-#include "spindle_control.h"
 #include "errno.h"
 #include "protocol.h"
 #include "config.h"
@@ -234,7 +233,6 @@ uint8_t gc_execute_line(char *line) {
       mc_line(target[X_AXIS], target[Y_AXIS], target[Z_AXIS], 
         (gc.inverse_feed_rate_mode) ? inverse_feed_rate : gc.feed_rate, gc.inverse_feed_rate_mode,
         gc.nominal_laser_intensity);
-      #endif      
       break;
       case MOTION_MODE_CW_ARC: case MOTION_MODE_CCW_ARC:
       if (radius_mode) {

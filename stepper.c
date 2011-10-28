@@ -93,7 +93,7 @@ void st_wake_up() {
 
 
 // Stepper shutdown
-static void st_go_idle() {
+void st_go_idle() {
   // Cycle finished. Set flag to false.
   cycle_start = false; 
   // Force stepper dwell to lock axes for a defined amount of time to ensure the axes come to a complete
@@ -275,7 +275,6 @@ SIGNAL(TIMER2_OVF_vect)
 // Initialize and start the stepper motor subsystem
 void st_init()
 {
-  clear_vector(st_position);
   
 	// Configure directions of interface pins
   STEPPING_DDR   |= STEPPING_MASK;

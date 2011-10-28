@@ -43,7 +43,7 @@ PROGRAMMER = "avrisp"    # use this for bootloader
 BITRATE = "115200"
 
 BUILDNAME = "LasaurGrbl"
-OBJECTS  = ["main", "motion_control", "gcode", "spindle_control", "serial", "protocol", "stepper", 
+OBJECTS  = ["main", "motion_control", "gcode", "serial", "protocol", "stepper", 
             "eeprom", "settings", "planner", "nuts_bolts", "limits", "print", "laser_control"]
              
 COMPILE = AVRGCCAPP + " -Wall -Os -DF_CPU=" + CLOCK + " -mmcu=" + DEVICE + " -I. -ffunction-sections"
