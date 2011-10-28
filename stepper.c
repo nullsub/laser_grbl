@@ -86,7 +86,7 @@ void st_wake_up() {
   // Initialize stepper output bits
   out_bits = (0) ^ (settings.invert_mask);
   // Enable steppers by resetting the stepper disable port
-  STEPPERS_DISABLE_PORT &= ~(1<<STEPPERS_DISABLE_BIT);
+  // STEPPERS_DISABLE_PORT &= ~(1<<STEPPERS_DISABLE_BIT);  //not connected
   // Enable stepper driver interrupt
   TIMSK1 |= (1<<OCIE1A);
 }
@@ -102,7 +102,7 @@ void st_go_idle() {
     _delay_ms(STEPPER_IDLE_LOCK_TIME);   
   #endif
   // Disable steppers by setting stepper disable
-  STEPPERS_DISABLE_PORT |= (1<<STEPPERS_DISABLE_BIT);
+  // STEPPERS_DISABLE_PORT |= (1<<STEPPERS_DISABLE_BIT);  //not connected
   // Disable stepper driver interrupt
   TIMSK1 &= ~(1<<OCIE1A);
   // current_block = NULL;
