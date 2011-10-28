@@ -3,6 +3,7 @@
   Part of Grbl
 
   Copyright (c) 2009-2011 Simen Svale Skogsrud
+  Copyright (c) 2011 Sungeun K. Jeon  
 
   Grbl is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -50,9 +51,9 @@ typedef struct {
 #define DEFAULT_MM_PER_ARC_SEGMENT 0.1
 #define DEFAULT_RAPID_FEEDRATE 20000.0        // in millimeters per minute
 #define DEFAULT_FEEDRATE 5000.0
-#define DEFAULT_ACCELERATION 500.0           // super smooth
-#define DEFAULT_MAX_JERK 1000.0              // and basically no jerk limitation
-#define DEFAULT_STEPPING_INVERT_MASK 28      //B00011100 inverting the axes' direction
+#define DEFAULT_ACCELERATION 500.0            // super smooth
+#define DEFAULT_JUNCTION_DEVIATION 0.1        // mm
+#define DEFAULT_STEPPING_INVERT_MASK 28       //B00011100 inverting the axes' direction
 
 
 void settings_reset() {
@@ -65,7 +66,7 @@ void settings_reset() {
   settings.acceleration = DEFAULT_ACCELERATION;
   settings.mm_per_arc_segment = DEFAULT_MM_PER_ARC_SEGMENT;
   settings.invert_mask = DEFAULT_STEPPING_INVERT_MASK;
-  settings.max_jerk = DEFAULT_MAX_JERK;
+  settings.junction_deviation = DEFAULT_JUNCTION_DEVIATION;
 }
 
 void settings_dump() {
@@ -78,9 +79,9 @@ void settings_dump() {
   printPgmString(PSTR(" (mm/min default seek rate)\r\n$6 = ")); printFloat(settings.mm_per_arc_segment);
   printPgmString(PSTR(" (mm/arc segment)\r\n$7 = ")); printInteger(settings.invert_mask); 
   printPgmString(PSTR(" (step port invert mask. binary = ")); printIntegerInBase(settings.invert_mask, 2);  
-  printPgmString(PSTR(")\r\n$8 = ")); printFloat(settings.acceleration);
-  printPgmString(PSTR(" (acceleration in mm/sec^2)\r\n$9 = ")); printFloat(settings.max_jerk);
-  printPgmString(PSTR(" (max instant cornering speed change in delta mm/min)"));
+  printPgmString(PSTR(")\r\n$8 = ")); printFloat(settings.acceleration/(60*60)); // Convert from mm/min^2 for human readability
+  printPgmString(PSTR(" (acceleration in mm/sec^2)\r\n$9 = ")); printFloat(settings.junction_deviation);
+  printPgmString(PSTR(" (cornering junction deviation in mm)"));
   printPgmString(PSTR("\r\n'$x=value' to set parameter or just '$' to dump current settings\r\n"));
 }
 
@@ -125,12 +126,21 @@ int read_settings() {
       return(false);
     }
   } else if (version == 1) {
-    // Migrate from old settings version
+    // Migrate from settings version 1
     if (!(memcpy_from_eeprom_with_checksum((char*)&settings, 1, sizeof(settings_v1_t)))) {
       return(false);
     }
     settings.acceleration = DEFAULT_ACCELERATION;
-    settings.max_jerk = DEFAULT_MAX_JERK;
+    settings.junction_deviation = DEFAULT_JUNCTION_DEVIATION;
+    write_settings();
+  } else if ((version == 2) || (version == 3)) {
+    // Migrate from settings version 2 and 3
+    if (!(memcpy_from_eeprom_with_checksum((char*)&settings, 1, sizeof(settings_t)))) {
+      return(false);
+    }
+    if (version == 2) { settings.junction_deviation = DEFAULT_JUNCTION_DEVIATION; }    
+    settings.acceleration *= 3600; // Convert to mm/min^2 from mm/sec^2
+    write_settings();
   } else {      
     return(false);
   }
@@ -146,13 +156,18 @@ void settings_store_setting(int parameter, double value) {
       return;
     }
     settings.steps_per_mm[parameter] = value; break;
-    case 3: settings.pulse_microseconds = round(value); break;
+    case 3: 
+    if (value < 3) {
+      printPgmString(PSTR("Step pulse must be >= 3 microseconds\r\n"));
+      return;
+    }
+    settings.pulse_microseconds = round(value); break;
     case 4: settings.default_feed_rate = value; break;
     case 5: settings.default_seek_rate = value; break;
     case 6: settings.mm_per_arc_segment = value; break;
     case 7: settings.invert_mask = trunc(value); break;
-    case 8: settings.acceleration = value; break;
-    case 9: settings.max_jerk = fabs(value); break;
+    case 8: settings.acceleration = value*60*60; break; // Convert to mm/min^2 for grbl internal use.
+    case 9: settings.junction_deviation = fabs(value); break;
     default: 
       printPgmString(PSTR("Unknown parameter\r\n"));
       return;
