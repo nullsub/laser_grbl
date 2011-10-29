@@ -1,9 +1,8 @@
 /*
-  spindle_control.h - spindle control methods
-  Part of Grbl
+  laser_control.h - spindle control methods
+  Part of LasaurGrbl
 
-  Copyright (c) 2009-2011 Simen Svale Skogsrud
-  Adapted from spindle_control.c by Stephan Hechenberger  
+  Copyright (c) 2011 Stephan Hechenberger
 
   Grbl is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -23,16 +22,11 @@
 #define laser_control_h 
 
 #include "config.h"
-
-#ifdef LASER_MODE 
-
 #include <avr/io.h>
 
 void laser_init();
 void laser_enable();
 void laser_disable();
 void set_laser_intensity(uint8_t intensity);  //0-255 = 0-100%
-
-#endif
 
 #endif

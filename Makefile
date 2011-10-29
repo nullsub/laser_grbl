@@ -53,7 +53,7 @@ PROGRAMMER = avrisp    # use this for bootloader
 # PROGRAMMER = usbtiny    # use this for programmer
 BAUD       = 115200
 
-OBJECTS    = main.o motion_control.o gcode.o spindle_control.o serial.o protocol.o stepper.o \
+OBJECTS    = main.o motion_control.o gcode.o serial.o protocol.o stepper.o \
              eeprom.o settings.o planner.o nuts_bolts.o limits.o print.o laser_control.o
 
 # FUSES      = -U hfuse:w:0xd9:m -U lfuse:w:0x24:m

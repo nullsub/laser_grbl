@@ -25,7 +25,6 @@
 #include "config.h"
 #include "planner.h"
 #include "stepper.h"
-#include "spindle_control.h"
 #include "laser_control.h"
 #include "motion_control.h"
 #include "gcode.h"
@@ -44,11 +43,7 @@ int main(void)
   settings_init();  
   plan_init();      
   st_init();
-  #ifndef LASER_MODE     
-    spindle_init();
-  #else
-    laser_init();
-  #endif   
+  laser_init();
   gc_init();
   limits_init();
                     

@@ -1,9 +1,8 @@
 /*
   laser_control.c - laser control methods
-  Part of Grbl
+  Part of LasaurGrbl
 
-  Copyright (c) 2009-2011 Simen Svale Skogsrud
-  Adapted from spindle_control.c by Stephan Hechenberger
+  Copyright (c) 2011 Stephan Hechenberger
   
   Grbl is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -21,7 +20,6 @@
 
 #include "laser_control.h"
 
-#ifdef LASER_MODE     
 
 #include "settings.h"
 #include "stepper.h"
@@ -59,5 +57,4 @@ void set_laser_intensity(uint8_t intensity) {
   OCR0A = intensity;
 }
 
-#endif
 

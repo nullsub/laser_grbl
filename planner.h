@@ -3,6 +3,7 @@
   Part of Grbl
 
   Copyright (c) 2009-2011 Simen Svale Skogsrud
+  Copyright (c) 2011 Sungeun K. Jeon  
 
   Grbl is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -34,16 +35,13 @@ typedef struct {
   uint32_t nominal_rate;              // The nominal step rate for this block in step_events/minute
   
   // Fields used by the motion planner to manage acceleration
-  double speed_x, speed_y, speed_z;   // Nominal mm/minute for each axis
   double nominal_speed;               // The nominal speed for this block in mm/min  
+  double entry_speed;                 // Entry speed at previous-current junction in mm/min
+  double max_entry_speed;             // Maximum allowable junction entry speed in mm/min
   double millimeters;                 // The total travel of this block in mm
-  double entry_factor;                // The factor representing the change in speed at the start of this trapezoid.
-                                      // (The end of the curren speed trapezoid is defined by the entry_factor of the
-                                      // next block)
-  #ifdef LASER_MODE                                       
-    uint8_t  nominal_laser_intensity;
-  #endif
-  
+  uint8_t  nominal_laser_intensity;
+  uint8_t recalculate_flag;           // Planner flag to recalculate trapezoids on entry junction
+  uint8_t nominal_length_flag;        // Planner flag for nominal speed always reached
   // Settings for the trapezoid generator
   uint32_t initial_rate;              // The jerk-adjusted step rate at start of block  
   uint32_t final_rate;                // The minimal rate at exit
@@ -59,11 +57,7 @@ void plan_init();
 // Add a new linear movement to the buffer. x, y and z is the signed, absolute target position in 
 // millimaters. Feed rate specifies the speed of the motion. If feed rate is inverted, the feed
 // rate is taken to mean "frequency" and would complete the operation in 1/feed_rate minutes.
-#ifndef LASER_MODE  
-  void plan_buffer_line(double x, double y, double z, double feed_rate, int invert_feed_rate);
-#else
-  void plan_buffer_line(double x, double y, double z, double feed_rate, int invert_feed_rate, int nominal_laser_intensity);
-#endif
+void plan_buffer_line(double x, double y, double z, double feed_rate, uint8_t invert_feed_rate, int nominal_laser_intensity);
 
 // Called when the current block is no longer needed. Discards the block and makes the memory
 // availible for new blocks.
@@ -76,7 +70,7 @@ block_t *plan_get_current_block();
 void plan_reset_block_buffer();
 
 // Enables or disables acceleration-management for upcoming blocks
-void plan_set_acceleration_manager_enabled(int enabled);
+void plan_set_acceleration_manager_enabled(uint8_t enabled);
 
 // Is acceleration-management currently enabled?
 int plan_is_acceleration_manager_enabled();

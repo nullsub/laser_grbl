@@ -3,7 +3,8 @@
   Part of Grbl
 
   Copyright (c) 2009-2011 Simen Svale Skogsrud
-
+  Copyright (c) 2011 Sungeun K. Jeon
+  
   Grbl is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
   the Free Software Foundation, either version 3 of the License, or
@@ -31,35 +32,25 @@
 // Execute linear motion in absolute millimeter coordinates. Feed rate given in millimeters/second
 // unless invert_feed_rate is true. Then the feed_rate means that the motion should be completed in
 // (1 minute)/feed_rate time.
-#ifndef LASER_MODE  
-  #define mc_line(x, y, z, feed_rate, invert_feed_rate) plan_buffer_line(x, y, z, feed_rate, invert_feed_rate) 
-#else
-  #define mc_line(x, y, z, feed_rate, invert_feed_rate, nominal_laser_intensity) plan_buffer_line(x, y, z, feed_rate, invert_feed_rate, nominal_laser_intensity) 
-#endif
+#define mc_line(x, y, z, feed_rate, invert_feed_rate, nominal_laser_intensity) plan_buffer_line(x, y, z, feed_rate, invert_feed_rate, nominal_laser_intensity) 
 
 #define mc_set_current_position(x, y, z) plan_set_current_position(x, y, z) 
 
-#ifdef __AVR_ATmega328P__
-// Execute an arc. theta == start angle, angular_travel == number of radians to go along the arc,
-// positive angular_travel means clockwise, negative means counterclockwise. Radius == the radius of the
-// circle in millimeters. axis_1 and axis_2 selects the circle plane in tool space. Stick the remaining
-// axis in axis_l which will be the axis for linear travel if you are tracing a helical motion.
-#ifndef LASER_MODE  
-  void mc_arc(double theta, double angular_travel, double radius, double linear_travel, int axis_1, int axis_2, 
-    int axis_linear, double feed_rate, int invert_feed_rate, double *position);
-#else
-  void mc_arc(double theta, double angular_travel, double radius, double linear_travel, int axis_1, int axis_2, 
-    int axis_linear, double feed_rate, int invert_feed_rate, double *position, int nominal_laser_intensity);
-#endif
-#endif
+// Execute an arc in offset mode format. position == current xyz, target == target xyz, 
+// offset == offset from current xyz, axis_XXX defines circle plane in tool space, axis_linear is
+// the direction of helical travel, radius == circle radius, isclockwise boolean. Used
+// for vector transformation direction.
+void mc_arc(double *position, double *target, double *offset, uint8_t axis_0, uint8_t axis_1,
+  uint8_t axis_linear, double feed_rate, uint8_t invert_feed_rate, double radius, uint8_t isclockwise,
+  int nominal_laser_intensity);
   
-// Dwell for a couple of time units
-void mc_dwell(uint32_t milliseconds);
+// Dwell for a specific number of seconds
+void mc_dwell(double seconds);
 
 // Send the tool home (not implemented)
 void mc_go_home();
 
-// stop all commands immediately
-void mc_emergency_stop();
+// // stop all commands immediately
+// void mc_emergency_stop();
 
 #endif

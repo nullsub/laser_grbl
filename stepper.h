@@ -24,6 +24,7 @@
 #include <avr/io.h>
 #include <avr/sleep.h>
 
+//#define LIMIT_MASK ((1<<X_LIMIT_BIT)|(1<<Y_LIMIT_BIT)|(1<<Z_LIMIT_BIT)) // All limit bits
 #define LIMIT_MASK ((1<<X_LIMIT_BIT)|(1<<Y_LIMIT_BIT)|(1<<Z_LIMIT_BIT)) // All limit bits
 #define STEP_MASK ((1<<X_STEP_BIT)|(1<<Y_STEP_BIT)|(1<<Z_STEP_BIT)) // All step bits
 #define DIRECTION_MASK ((1<<X_DIRECTION_BIT)|(1<<Y_DIRECTION_BIT)|(1<<Z_DIRECTION_BIT)) // All direction bits
@@ -38,9 +39,8 @@ void st_synchronize();
 // Execute the homing cycle
 void st_go_home();
              
-// The stepper subsystem goes to sleep when it runs out of things to execute. Call this
-// to notify the subsystem that it is time to go to work.
-void st_wake_up();
+// Notify the stepper subsystem to start executing the g-code program in buffer.
+void st_cycle_start();
 
 // make the stepper subsystem fall asleep
 void st_go_idle();
