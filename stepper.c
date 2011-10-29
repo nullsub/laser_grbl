@@ -351,7 +351,10 @@ static uint32_t config_step_timer(uint32_t cycles)
 static void set_step_events_per_minute(uint32_t steps_per_minute) {
   if (steps_per_minute < MINIMUM_STEPS_PER_MINUTE) { steps_per_minute = MINIMUM_STEPS_PER_MINUTE; }
   cycles_per_step_event = config_step_timer((TICKS_PER_MICROSECOND*1000000*60)/steps_per_minute);
-  // set_laser_pwm_based_on_actual_speed() probably here
+  
+  // set laser intensity here
+  // this allows us to set it proportional to speed
+  set_laser_pwm_based_on_actual_speed();
 }
 
 static void set_laser_pwm_based_on_actual_speed() {

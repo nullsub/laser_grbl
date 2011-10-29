@@ -338,6 +338,9 @@ void plan_buffer_line(double x, double y, double z, double feed_rate, uint8_t in
   
   // Prepare to set up new block
   block_t *block = &block_buffer[block_buffer_head];
+  
+  // set nominal laser intensity
+  block->nominal_laser_intensity = nominal_laser_intensity;  
 
   // Compute direction bits for this block
   block->direction_bits = 0;
