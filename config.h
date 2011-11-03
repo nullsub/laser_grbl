@@ -27,27 +27,31 @@
 #define BAUD_RATE 57600
 #define LASER_OFF 0
     
-// #define STEPPERS_DISABLE_DDR     DDRD
-// #define STEPPERS_DISABLE_PORT    PORTD
-// #define STEPPERS_DISABLE_BIT      7
-
 #define LIMIT_OVERWRITE_DDR     DDRD
 #define LIMIT_OVERWRITE_PORT    PORTD
-#define LIMIT_OVERWRITE_BIT      7
-  
-#define LIMIT_DDR      DDRD
-#define LIMIT_PORT     PORTD  
-#define LIMIT_BIT       4
-#define DOOR_BIT        5
+#define LIMIT_OVERWRITE_BIT     7
 
-#define STEPPING_DDR       DDRB
-#define STEPPING_PORT      PORTB
-#define X_STEP_BIT           0
-#define Y_STEP_BIT           1
-#define Z_STEP_BIT           2
-#define X_DIRECTION_BIT      3
-#define Y_DIRECTION_BIT      4
-#define Z_DIRECTION_BIT      5
+#define SENSE_DDR               DDRD
+#define SENSE_PORT              PORTD
+#define POWER_BIT               2
+#define CHILLER_BIT             3
+#define DOOR_BIT                5
+  
+#define LIMIT_DDR               DDRC
+#define LIMIT_PORT              PORTC  
+#define X1_LIMIT_BIT            0
+#define X2_LIMIT_BIT            1
+#define Y1_LIMIT_BIT            2
+#define Y2_LIMIT_BIT            3
+
+#define STEPPING_DDR            DDRB
+#define STEPPING_PORT           PORTB
+#define X_STEP_BIT              0
+#define Y_STEP_BIT              1
+#define Z_STEP_BIT              2
+#define X_DIRECTION_BIT         3
+#define Y_DIRECTION_BIT         4
+#define Z_DIRECTION_BIT         5
 
 
 // This parameter sets the delay time before disabling the steppers after the final block of movement.
