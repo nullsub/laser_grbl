@@ -10,19 +10,21 @@ import os
 # How to use this file
 # =====================
 
-# I am on OSX with the Arduino IDE (022) installed. While I don't use the IDE
-# directly I use the tool chain of the Arduino IDE.
+# To compile and upload the Lasersaur firmware a couple of tools are 
+# required (avr-gcc, avr-libc, and avrdude). On OSX and Windows the simplest 
+# way to get them is to install the Arduino IDE. On Linux these package can
+# easily be installed with the package manager (also installing "arduino-core"
+# should work nicely).
 
 # 1.) Define port to your Arduino One.
 #     You can find this out in the Arduino IDE under Tools->Serial Port
 #     On OSX you can also do a "ls /dev/tty.usbmodem*" in the Terminal
 
-PORT = "/dev/tty.usbmodem621" 
+PORT = "/dev/tty.usbmodem621"
 #PORT = "COM1"
 
 # 2.) Make sure the following points to the avr build tools.
-#     The default here is what you use if you are on OSX with
-#     the Arduino IDE installed.
+#     On Windows your installation folder may vary.
 
 #OSX
 AVRDUDEAPP    = "/Applications/Arduino.app/Contents/Resources/Java/hardware/tools/avr/bin/avrdude"
@@ -32,7 +34,7 @@ AVRSIZEAPP    = "/Applications/Arduino.app/Contents/Resources/Java/hardware/tool
 AVROBJDUMPAPP = "/Applications/Arduino.app/Contents/Resources/Java/hardware/tools/avr/bin/avr-objdump"
 AVRDUDECONFIG = "/Applications/Arduino.app/Contents/Resources/Java/hardware/tools/avr/etc/avrdude.conf"
 
-# Windows
+# Windows (installation path may vary)
 # AVRDUDEAPP    = "C:\\arduino\\hardware\\tools\\avr\\bin\\avrdude"
 # AVRGCCAPP     = "C:\\arduino\\hardware\\tools\\avr\\bin\\avr-gcc"
 # AVROBJCOPYAPP = "C:\\arduino\\hardware\\tools\\avr\\bin\\avr-objcopy"
@@ -40,6 +42,13 @@ AVRDUDECONFIG = "/Applications/Arduino.app/Contents/Resources/Java/hardware/tool
 # AVROBJDUMPAPP = "C:\\arduino\\hardware\\tools\\avr\\bin\\avr-objdump"
 # AVRDUDECONFIG = "C:\\arduino\\hardware\\tools\\avr\\etc\\avrdude.conf"
 
+# Linux (Ubuntu)
+# AVRDUDEAPP    = "avrdude"
+# AVRGCCAPP     = "avr-gcc"
+# AVROBJCOPYAPP = "avr-objcopy"
+# AVRSIZEAPP    = "avr-size"
+# AVROBJDUMPAPP = "avr-objdump"
+# AVRDUDECONFIG = "/etc/avrdude.conf"
 
 # 3.) Compile LasaurGrbl and load it to an Arduino Uno via USB
 #     In the Teminal from the location of this flash.py type: 
