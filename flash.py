@@ -21,12 +21,22 @@ PORT = "/dev/tty.usbmodem621"
 #     The default here is what you use if you are on OSX with
 #     the Arduino IDE installed.
 
-AVRDUDEAPP = "/Applications/Arduino.app/Contents/Resources/Java/hardware/tools/avr/bin/avrdude"
-AVRGCCAPP = "/Applications/Arduino.app/Contents/Resources/Java/hardware/tools/avr/bin/avr-gcc"
+#OSX
+AVRDUDEAPP    = "/Applications/Arduino.app/Contents/Resources/Java/hardware/tools/avr/bin/avrdude"
+AVRGCCAPP     = "/Applications/Arduino.app/Contents/Resources/Java/hardware/tools/avr/bin/avr-gcc"
 AVROBJCOPYAPP = "/Applications/Arduino.app/Contents/Resources/Java/hardware/tools/avr/bin/avr-objcopy"
-AVRSIZEAPP = "/Applications/Arduino.app/Contents/Resources/Java/hardware/tools/avr/bin/avr-size"
+AVRSIZEAPP    = "/Applications/Arduino.app/Contents/Resources/Java/hardware/tools/avr/bin/avr-size"
 AVROBJDUMPAPP = "/Applications/Arduino.app/Contents/Resources/Java/hardware/tools/avr/bin/avr-objdump"
 AVRDUDECONFIG = "/Applications/Arduino.app/Contents/Resources/Java/hardware/tools/avr/etc/avrdude.conf"
+
+# Windows
+# AVRDUDEAPP    = "C:\Program Files\arduino-0022\hardware\tools\avr\bin\avrdude"
+# AVRGCCAPP     = "C:\Program Files\arduino-0022\hardware\tools\avr\bin\avr-gcc"
+# AVROBJCOPYAPP = "C:\Program Files\arduino-0022\hardware\tools\avr\bin\avr-objcopy"
+# AVRSIZEAPP    = "C:\Program Files\arduino-0022\hardware\tools\avr\bin\avr-size"
+# AVROBJDUMPAPP = "C:\Program Files\arduino-0022\hardware\tools\avr\bin\avr-objdump"
+# AVRDUDECONFIG = "C:\Program Files\arduino-0022\hardware\tools\avr\etc\avrdude.conf"
+
 
 # 3.) Compile LasaurGrbl and load it to an Arduino Uno via USB
 #     In the Teminal from the location of this flash.py type: 
