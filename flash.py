@@ -16,6 +16,7 @@ import os
 # 1.) Define port to your Arduino One.
 
 PORT = "/dev/tty.usbmodem621" 
+#PORT = "COM1"
 
 # 2.) Make sure the following points to the avr build tools.
 #     The default here is what you use if you are on OSX with
@@ -30,12 +31,12 @@ AVROBJDUMPAPP = "/Applications/Arduino.app/Contents/Resources/Java/hardware/tool
 AVRDUDECONFIG = "/Applications/Arduino.app/Contents/Resources/Java/hardware/tools/avr/etc/avrdude.conf"
 
 # Windows
-# AVRDUDEAPP    = "C:\Program Files\arduino-0022\hardware\tools\avr\bin\avrdude"
-# AVRGCCAPP     = "C:\Program Files\arduino-0022\hardware\tools\avr\bin\avr-gcc"
-# AVROBJCOPYAPP = "C:\Program Files\arduino-0022\hardware\tools\avr\bin\avr-objcopy"
-# AVRSIZEAPP    = "C:\Program Files\arduino-0022\hardware\tools\avr\bin\avr-size"
-# AVROBJDUMPAPP = "C:\Program Files\arduino-0022\hardware\tools\avr\bin\avr-objdump"
-# AVRDUDECONFIG = "C:\Program Files\arduino-0022\hardware\tools\avr\etc\avrdude.conf"
+# AVRDUDEAPP    = "C:\\arduino\\hardware\\tools\\avr\\bin\\avrdude"
+# AVRGCCAPP     = "C:\\arduino\\hardware\\tools\\avr\\bin\\avr-gcc"
+# AVROBJCOPYAPP = "C:\\arduino\\hardware\\tools\\avr\\bin\\avr-objcopy"
+# AVRSIZEAPP    = "C:\\arduino\\hardware\\tools\\avr\\bin\\avr-size"
+# AVROBJDUMPAPP = "C:\\arduino\\hardware\\tools\\avr\\bin\\avr-objdump"
+# AVRDUDECONFIG = "C:\\arduino\\hardware\\tools\\avr\\etc\\avrdude.conf"
 
 
 # 3.) Compile LasaurGrbl and load it to an Arduino Uno via USB
@@ -65,7 +66,7 @@ os.system('%(compile)s -o main.elf %(alldoto)s  -lm' % {'compile': COMPILE, 'all
 
 #os.system('rm -f %(product).hex' % {'product':BUILDNAME})
 
-os.system('%(objcopy)s -j .text -j .data -O ihex main.elf %(product)s.hex' % {'objcopy': AVROBJCOPYAPP, 'obj':fileobj, 'product':BUILDNAME});
+os.system('%(objcopy)s -j .text -j .data -O ihex main.elf %(product)s.hex' % {'objcopy': AVROBJCOPYAPP, 'product':BUILDNAME});
 
 os.system('%(size)s *.hex *.elf *.o' % {'size':AVRSIZEAPP})
 
