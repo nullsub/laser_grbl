@@ -14,6 +14,8 @@ import os
 # directly I use the tool chain of the Arduino IDE.
 
 # 1.) Define port to your Arduino One.
+#     You can find this out in the Arduino IDE under Tools->Serial Port
+#     On OSX you can also do a "ls /dev/tty.usbmodem*" in the Terminal
 
 PORT = "/dev/tty.usbmodem621" 
 #PORT = "COM1"
