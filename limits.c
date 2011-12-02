@@ -23,77 +23,62 @@ along with Grbl. If not, see <http://www.gnu.org/licenses/>.
 #include "settings.h"
 #include "nuts_bolts.h"
 #include "config.h"
-#include "limits.h"
 
 void limits_init() {
   LIMIT_DDR &= ~(LIMIT_MASK);
   LIMIT_PORT |= LIMIT_MASK; //activate pull-up resistors
-
-  // setup limit overwrite pin
-  LIMIT_OVERWRITE_DDR |= 1<<LIMIT_OVERWRITE_BIT;
-  limit_overwrite_disable();
-}
-
-
-void limit_overwrite_enable() {
-  // sinking the pin overwrites the limit stop hard logic
-  LIMIT_OVERWRITE_PORT &= ~(1<<LIMIT_OVERWRITE_BIT);
-}
-
-void limit_overwrite_disable() {
-  LIMIT_OVERWRITE_PORT |= (1<<LIMIT_OVERWRITE_BIT);
 }
 
 static void homing_cycle(bool x_axis, bool y_axis, bool z_axis, bool reverse_direction, uint32_t microseconds_per_pulse) {
   
-  // uint32_t step_delay = microseconds_per_pulse - settings.pulse_microseconds;
-  // uint8_t out_bits = DIRECTION_MASK;
-  // uint8_t limit_bits;
-  //
-  // if (x_axis) { out_bits |= (1<<X_STEP_BIT); }
-  // if (y_axis) { out_bits |= (1<<Y_STEP_BIT); }
-  // if (z_axis) { out_bits |= (1<<Z_STEP_BIT); }
-  //
-  // // Invert direction bits if this is a reverse homing_cycle
-  // if (reverse_direction) {
-  // out_bits ^= DIRECTION_MASK;
-  // }
-  //
-  // // Apply the global invert mask
-  // out_bits ^= settings.invert_mask;
-  //
-  // // Set direction pins
-  // STEPPING_PORT = (STEPPING_PORT & ~DIRECTION_MASK) | (out_bits & DIRECTION_MASK);
-  //
-  // for(;;) {
-  // limit_bits = LIMIT_PIN;
-  // if (reverse_direction) {
-  // // Invert limit_bits if this is a reverse homing_cycle
-  // limit_bits ^= LIMIT_MASK;
-  // }
-  // if (x_axis && !(limit_bits & (1<<X_LIMIT_BIT))) {
-  // x_axis = false;
-  // out_bits ^= (1<<X_STEP_BIT);
-  // }
-  // if (y_axis && !(limit_bits & (1<<Y_LIMIT_BIT))) {
-  // y_axis = false;
-  // out_bits ^= (1<<Y_STEP_BIT);
-  // }
-  // if (z_axis && !(limit_bits & (1<<Z_LIMIT_BIT))) {
-  // z_axis = false;
-  // out_bits ^= (1<<Z_STEP_BIT);
-  // }
-  // if(x_axis || y_axis || z_axis) {
-  // // step all axes still in out_bits
-  // STEPPING_PORT |= out_bits & STEP_MASK;
-  // _delay_us(settings.pulse_microseconds);
-  // STEPPING_PORT ^= out_bits & STEP_MASK;
-  // _delay_us(step_delay);
-  // } else {
-  // return;
-  // }
-  // }
-  // return;
+  uint32_t step_delay = microseconds_per_pulse - settings.pulse_microseconds;
+  uint8_t out_bits = DIRECTION_MASK;
+  uint8_t limit_bits;
+  
+  if (x_axis) { out_bits |= (1<<X_STEP_BIT); }
+  if (y_axis) { out_bits |= (1<<Y_STEP_BIT); }
+  if (z_axis) { out_bits |= (1<<Z_STEP_BIT); }
+  
+  // Invert direction bits if this is a reverse homing_cycle
+  if (reverse_direction) {
+    out_bits ^= DIRECTION_MASK;
+  }
+  
+  // Apply the global invert mask
+  out_bits ^= settings.invert_mask;
+  
+  // Set direction pins
+  STEPPING_PORT = (STEPPING_PORT & ~DIRECTION_MASK) | (out_bits & DIRECTION_MASK);
+  
+  for(;;) {
+    limit_bits = LIMIT_PIN;
+    if (reverse_direction) {
+      // Invert limit_bits if this is a reverse homing_cycle
+      limit_bits ^= LIMIT_MASK;
+    }
+    if (x_axis && !(limit_bits & (1<<X_LIMIT_BIT))) {
+      x_axis = false;
+      out_bits ^= (1<<X_STEP_BIT);
+    }
+    if (y_axis && !(limit_bits & (1<<Y_LIMIT_BIT))) {
+      y_axis = false;
+      out_bits ^= (1<<Y_STEP_BIT);
+    }
+    if (z_axis && !(limit_bits & (1<<Z_LIMIT_BIT))) {
+      z_axis = false;
+      out_bits ^= (1<<Z_STEP_BIT);
+    }
+    if(x_axis || y_axis || z_axis) {
+        // step all axes still in out_bits
+        STEPPING_PORT |= out_bits & STEP_MASK;
+        _delay_us(settings.pulse_microseconds);
+        STEPPING_PORT ^= out_bits & STEP_MASK;
+        _delay_us(step_delay);
+    } else {
+        return;
+    }
+  }
+  return;
 }
 
 static void approach_limit_switch(bool x, bool y, bool z) {
@@ -110,3 +95,4 @@ void limits_go_home() {
   approach_limit_switch(true, true, false);
   leave_limit_switch(true, true, false);
 }
+
