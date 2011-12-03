@@ -30,7 +30,7 @@ void limits_init() {
   LIMIT_DDR &= ~(LIMIT_MASK);
   LIMIT_PORT |= LIMIT_MASK;     //activate pull-up resistors  
 
-  // setup limit overwrite pin
+  // define as output pin
   LIMIT_OVERWRITE_DDR |= 1<<LIMIT_OVERWRITE_BIT;
   limit_overwrite_disable();
 }

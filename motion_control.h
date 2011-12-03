@@ -36,7 +36,10 @@
 
 #define mc_set_current_position(x, y, z) plan_set_current_position(x, y, z) 
 
-#define mc_mcode(type, mcode) plan_buffer_mcode(type, mcode)
+#define mc_cancel() plan_buffer_command(TYPE_CANCEL)
+#define mc_airgas_disable() plan_buffer_command(TYPE_AIRGAS_DISABLE)
+#define mc_air_enable() plan_buffer_command(TYPE_AIR_ENABLE)
+#define mc_gas_enable() plan_buffer_command(TYPE_GAS_ENABLE)
 
 // Execute an arc in offset mode format. position == current xyz, target == target xyz, 
 // offset == offset from current xyz, axis_XXX defines circle plane in tool space, axis_linear is

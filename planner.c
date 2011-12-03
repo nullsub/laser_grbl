@@ -319,33 +319,6 @@ block_t *plan_get_current_block() {
   return(&block_buffer[block_buffer_tail]);
 }
 
-// Add a new M Code to the buffer. mcode is M CODE.  steps_x will conatin M Code Type, steps_y will contain M Code data
-void plan_buffer_mcode(double mcode_type, double mcode_data) {
-  int next_buffer_head;
-  block_t *block;
-
-  switch ((uint8_t)mcode_type) {
-    case MCODE_AIR:
-      // Calculate the buffer head after we push this byte
-      next_buffer_head = next_block_index( block_buffer_head );
-      // If the buffer is full: good! That means we are well ahead of the robot.
-      // Rest here until there is room in the buffer.
-      while(block_buffer_tail == next_buffer_head) { sleep_mode(); }
-      // Prepare to set up new block
-      block = &block_buffer[block_buffer_head];
-      // set "data type" to M Code command
-      block->data_type = M_CODE;
-      // steps_x = MCODE_AIR as this is an M7, M8 or M9 command
-      block->steps_x = mcode_type;
-      // put M Code data into steps_y of plan buffer.  Data represents M7, M8 or M9 command
-      block->steps_y = mcode_data;
-      // Move buffer head
-      block_buffer_head = next_buffer_head;
-      break;
-    default:
-      break;
-  }
-}
 
 // Add a new linear movement to the buffer. x, y and z is the signed, absolute target position in 
 // millimaters. Feed rate specifies the speed of the motion. If feed rate is inverted, the feed
@@ -366,8 +339,8 @@ void plan_buffer_line(double x, double y, double z, double feed_rate, uint8_t in
   // Prepare to set up new block
   block_t *block = &block_buffer[block_buffer_head];
   
-  // set "data type" to linear command
-  block->data_type = G_CODE;
+  // set block type to line command
+  block->type = TYPE_LINE;
 
   // set nominal laser intensity
   block->nominal_laser_intensity = nominal_laser_intensity;  
@@ -499,6 +472,27 @@ void plan_buffer_line(double x, double y, double z, double feed_rate, uint8_t in
 
   st_cycle_start();
 }
+
+
+void plan_buffer_command(uint8_t type) {
+  // Calculate the buffer head after we push this byte
+  int next_buffer_head = next_block_index( block_buffer_head );
+  // If the buffer is full: good! That means we are well ahead of the robot. 
+  // Rest here until there is room in the buffer.
+  while(block_buffer_tail == next_buffer_head) { sleep_mode(); }
+  // Prepare to set up new block
+  block_t *block = &block_buffer[block_buffer_head];
+  
+  // set block type command
+  block->type = type;
+  
+  // Move buffer head
+  block_buffer_head = next_buffer_head;
+  
+  st_cycle_start();
+}
+
+
 
 // Reset the planner position vector and planner speed
 void plan_set_current_position(double x, double y, double z) {

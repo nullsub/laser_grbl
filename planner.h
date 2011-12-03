@@ -26,17 +26,23 @@
 #include "config.h"
 
 
+// Commands types the planner and stepper can schedule for execution 
+#define TYPE_CANCEL 0
+#define TYPE_LINE 1
+#define TYPE_AIRGAS_DISABLE 2
+#define TYPE_AIR_ENABLE 3
+#define TYPE_GAS_ENABLE 4
+
+
 // This struct is used when buffering the setup for each linear movement "nominal" values are as specified in 
 // the source g-code and may never actually be reached if acceleration management is active.
 typedef struct {
-  uint8_t data_type;                  // G_CODE = G Code command. Linear movement command
-                                      // M_CODE = M command like M7, M8, M9, M112
+  uint8_t type;                       // Type of command, eg: TYPE_LINE, TYPE_CANCEL
   // Fields used by the bresenham algorithm for tracing the line
   uint32_t steps_x, steps_y, steps_z; // Step count along each axis
   uint8_t  direction_bits;            // The direction bit set for this block (refers to *_DIRECTION_BIT in config.h)
   int32_t  step_event_count;          // The number of step events required to complete this block
   uint32_t nominal_rate;              // The nominal step rate for this block in step_events/minute
-  
   // Fields used by the motion planner to manage acceleration
   double nominal_speed;               // The nominal speed for this block in mm/min  
   double entry_speed;                 // Entry speed at previous-current junction in mm/min
@@ -62,11 +68,9 @@ void plan_init();
 // rate is taken to mean "frequency" and would complete the operation in 1/feed_rate minutes.
 void plan_buffer_line(double x, double y, double z, double feed_rate, uint8_t invert_feed_rate, int nominal_laser_intensity);
 
-// Add a new M Code into the buffer.
-// Parameters:
-//  MCode Type. Eg: MCODE_AIR=0
-//  MCode Data. Eg: AIR_OFF=0, AIR1_ON=1, AIR2_ON=2
-void plan_buffer_mcode(double MCode_Type, double air);
+// Add a non-motion command to the queue.
+// Typical types are: TYPE_CANCEL, TYPE_AIRGAS_DISABLE, TYPE_AIR_ENABLE, TYPE_GAS_ENABLE
+void plan_buffer_command(uint8_t type);
 
 // Called when the current block is no longer needed. Discards the block and makes the memory
 // availible for new blocks.

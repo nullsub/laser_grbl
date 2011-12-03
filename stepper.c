@@ -33,7 +33,7 @@
 #include "planner.h"
 #include "limits.h"
 #include "laser_control.h"
-#include "air_assist_control.h"
+#include "airgas_control.h"
 
 // Some useful constants
 #define STEP_MASK ((1<<X_STEP_BIT)|(1<<Y_STEP_BIT)|(1<<Z_STEP_BIT)) // All step bits
@@ -148,7 +148,7 @@ SIGNAL(TIMER1_COMPA_vect)
   STEPPING_PORT = (STEPPING_PORT & ~STEP_MASK) | out_bits;
   // Reset step pulse reset timer so that The Stepper Port Reset Interrupt can reset the signal after
   // exactly settings.pulse_microseconds microseconds.
-//   TCNT2 = -(((settings.pulse_microseconds-2)*TICKS_PER_MICROSECOND)/8);
+  // TCNT2 = -(((settings.pulse_microseconds-2)*TICKS_PER_MICROSECOND)/8);
   TCNT2 = -(((settings.pulse_microseconds-2)*TICKS_PER_MICROSECOND) >> 3); // Bit shift divide by 8.
 
   busy = true;
@@ -161,8 +161,7 @@ SIGNAL(TIMER1_COMPA_vect)
     // Anything in the buffer?
     current_block = plan_get_current_block();
     if (current_block != NULL) {
-      // See what kind of data is in the plan_buffer
-      if (current_block->data_type == G_CODE){
+      if (current_block->type == TYPE_LINE){
         trapezoid_generator_reset();
         counter_x = -(current_block->step_event_count >> 1);
         counter_y = counter_x;
@@ -176,27 +175,27 @@ SIGNAL(TIMER1_COMPA_vect)
 
   if (current_block != NULL) {
     // See what kind of data is in the plan_buffer
-    switch (current_block->data_type) {
-      case M_CODE:
-        // See what kind of M Code we have. IE: AIR M Code?
-        switch (current_block->steps_x) {
-          case MCODE_AIR:
-            // Execute M Code as defined by:
-            // steps_x = 0 = AIR_OFF
-            // steps_x = 1 = AIR1_ON
-            // steps_x = 2 = AIR2_ON
-            air_assist(current_block->steps_y);
-            current_block = NULL;
-            plan_discard_current_block();
-            break; // End mcode_air
-          default:
-            current_block = NULL;
-            plan_discard_current_block();
-            break; // End mcode_air
-        }
-      break; // End M_CODE
+    switch (current_block->type) {
 
-      case G_CODE:
+      case TYPE_AIRGAS_DISABLE:
+      airgas_disable();
+      current_block = NULL;
+      plan_discard_current_block();  
+      break;
+
+      case TYPE_AIR_ENABLE:
+      air_enable();
+      current_block = NULL;
+      plan_discard_current_block();  
+      break;
+
+      case TYPE_GAS_ENABLE:
+      gas_enable();
+      current_block = NULL;
+      plan_discard_current_block();  
+      break;
+
+      case TYPE_LINE:
       // Execute step displacement profile by bresenham line algorithm
       out_bits = current_block->direction_bits;
       counter_x += current_block->steps_x;
@@ -280,14 +279,17 @@ SIGNAL(TIMER1_COMPA_vect)
         current_block = NULL;
         plan_discard_current_block();
       }
-      break;
+      break; 
     }
+    
   } else {
     set_laser_intensity(LASER_OFF);
   }
+  
   out_bits ^= settings.invert_mask;  // Apply stepper invert mask
   busy=false;
 }
+
 
 // This interrupt is set up by SIG_OUTPUT_COMPARE1A when it sets the motor port bits. It resets
 // the motor port after a short period (settings.pulse_microseconds) completing one step cycle.
