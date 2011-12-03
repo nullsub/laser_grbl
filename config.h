@@ -44,6 +44,11 @@
 #define Y1_LIMIT_BIT            2
 #define Y2_LIMIT_BIT            3
 
+#define AIR_ASSIST_DDR          DDRC
+#define AIR_ASSIST_PORT         PORTC
+#define AIR1_ASSIST_BIT         4
+#define AIR2_ASSIST_BIT         5
+
 #define STEPPING_DDR            DDRB
 #define STEPPING_PORT           PORTB
 #define X_STEP_BIT              0

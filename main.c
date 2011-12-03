@@ -26,6 +26,7 @@
 #include "planner.h"
 #include "stepper.h"
 #include "laser_control.h"
+#include "air_assist_control.h"
 #include "motion_control.h"
 #include "gcode.h"
 #include "protocol.h"
@@ -44,6 +45,7 @@ int main(void)
   plan_init();      
   st_init();
   laser_init();
+  air_assist_init();
   gc_init();
   limits_init();
                     

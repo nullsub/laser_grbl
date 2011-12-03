@@ -36,6 +36,8 @@
 
 #define mc_set_current_position(x, y, z) plan_set_current_position(x, y, z) 
 
+#define mc_mcode(type, mcode) plan_buffer_mcode(type, mcode)
+
 // Execute an arc in offset mode format. position == current xyz, target == target xyz, 
 // offset == offset from current xyz, axis_XXX defines circle plane in tool space, axis_linear is
 // the direction of helical travel, radius == circle radius, isclockwise boolean. Used

@@ -25,9 +25,12 @@
 #include <inttypes.h>
 #include "config.h"
 
+
 // This struct is used when buffering the setup for each linear movement "nominal" values are as specified in 
 // the source g-code and may never actually be reached if acceleration management is active.
 typedef struct {
+  uint8_t data_type;                  // G_CODE = G Code command. Linear movement command
+                                      // M_CODE = M command like M7, M8, M9, M112
   // Fields used by the bresenham algorithm for tracing the line
   uint32_t steps_x, steps_y, steps_z; // Step count along each axis
   uint8_t  direction_bits;            // The direction bit set for this block (refers to *_DIRECTION_BIT in config.h)
@@ -58,6 +61,12 @@ void plan_init();
 // millimaters. Feed rate specifies the speed of the motion. If feed rate is inverted, the feed
 // rate is taken to mean "frequency" and would complete the operation in 1/feed_rate minutes.
 void plan_buffer_line(double x, double y, double z, double feed_rate, uint8_t invert_feed_rate, int nominal_laser_intensity);
+
+// Add a new M Code into the buffer.
+// Parameters:
+//  MCode Type. Eg: MCODE_AIR=0
+//  MCode Data. Eg: AIR_OFF=0, AIR1_ON=1, AIR2_ON=2
+void plan_buffer_mcode(double MCode_Type, double air);
 
 // Called when the current block is no longer needed. Discards the block and makes the memory
 // availible for new blocks.

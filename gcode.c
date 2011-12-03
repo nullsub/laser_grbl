@@ -32,6 +32,7 @@
 #include "errno.h"
 #include "protocol.h"
 #include "config.h"
+#include "air_assist_control.h"
 
 #define MM_PER_INCH (25.4)
 
@@ -40,6 +41,7 @@
 #define NEXT_ACTION_GO_HOME 2
 #define NEXT_ACTION_SET_COORDINATE_OFFSET 3
 #define NEXT_ACTION_CANCEL 4
+#define NEXT_ACTION_AIR 5
 
 #define MOTION_MODE_SEEK 0 // G0 
 #define MOTION_MODE_LINEAR 1 // G1
@@ -58,6 +60,7 @@
 #define SPINDLE_DIRECTION_CW 0
 #define SPINDLE_DIRECTION_CCW 1
 
+
 typedef struct {
   uint8_t status_code;
 
@@ -67,6 +70,7 @@ typedef struct {
   uint8_t absolute_mode;           /* 0 = relative motion, 1 = absolute motion {G90, G91} */
   uint8_t program_flow;
   int8_t laser_enable;
+  uint8_t air_assist;              /* 1 = M7 = Air1,2 = M8 = Air2,0 = M9 = all air off, can be air/Nitrogen/exaust fan/etc.. */
   double feed_rate, seek_rate;     /* Millimeters/second */
   double position[3];              /* Where the interpreter considers the tool to be at this point in the code */
   uint8_t tool;
@@ -95,6 +99,7 @@ void gc_init() {
   select_plane(X_AXIS, Y_AXIS, Z_AXIS);
   gc.absolute_mode = true;
   gc.nominal_laser_intensity = LASER_OFF;
+  gc.air_assist = AIR_OFF;
 }
 
 static float to_millimeters(double value) {
@@ -156,7 +161,10 @@ uint8_t gc_execute_line(char *line) {
         case 2: case 30: case 60: gc.program_flow = PROGRAM_FLOW_COMPLETED; break;
         case 3: gc.laser_enable = 1; break;
         case 4: gc.laser_enable = 1; break;
-        case 5: gc.laser_enable = 0; break;        
+        case 5: gc.laser_enable = 0; break;
+        case 7: gc.air_assist = AIR1_ON; next_action = NEXT_ACTION_AIR;break;
+        case 8: gc.air_assist = AIR2_ON; next_action = NEXT_ACTION_AIR;break;
+        case 9: gc.air_assist = AIR_OFF; next_action = NEXT_ACTION_AIR;break;
         case 112: next_action = NEXT_ACTION_CANCEL; break;
         default: FAIL(STATUS_UNSUPPORTED_STATEMENT);
       }            
@@ -220,9 +228,13 @@ uint8_t gc_execute_line(char *line) {
     // captain, we have a new target!
     //st_get_position(&gc.position[X_AXIS], &gc.position[Y_AXIS], &gc.position[Z_AXIS]);
     //mc_set_current_position(gc.position[X_AXIS], gc.position[Y_AXIS], gc.position[Z_AXIS]);
+    mc_mcode(MCODE_AIR,AIR_OFF);
     mc_line(target[X_AXIS], target[Y_AXIS], target[Z_AXIS], gc.seek_rate, false, LASER_OFF);
     //return;  // totally bail
     break;
+    case NEXT_ACTION_AIR:
+      mc_mcode(MCODE_AIR,gc.air_assist);
+      break;
     case NEXT_ACTION_DEFAULT: 
     switch (gc.motion_mode) {
       case MOTION_MODE_CANCEL: break;
@@ -388,7 +400,6 @@ static int next_statement(char *letter, double *double_ptr, char *line, uint8_t 
   - Override control
 
    group 0 = {G10, G28, G30, G92, G92.1, G92.2, G92.3} (Non modal G-codes)
-   group 8 = {M7, M8, M9} coolant (special case: M7 and M8 may be active at the same time)
    group 9 = {M48, M49} enable/disable feed and speed override switches
    group 12 = {G54, G55, G56, G57, G58, G59, G59.1, G59.2, G59.3} coordinate system selection
    group 13 = {G61, G61.1, G64} path control mode
