@@ -228,6 +228,7 @@ uint8_t gc_execute_line(char *line) {
     // captain, we have a new target!
     //st_get_position(&gc.position[X_AXIS], &gc.position[Y_AXIS], &gc.position[Z_AXIS]);
     //mc_set_current_position(gc.position[X_AXIS], gc.position[Y_AXIS], gc.position[Z_AXIS]);
+    mc_airgas_disable();
     mc_cancel();
     mc_line(target[X_AXIS], target[Y_AXIS], target[Z_AXIS], gc.seek_rate, false, LASER_OFF);
     //return;  // totally bail
