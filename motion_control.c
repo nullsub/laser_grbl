@@ -156,9 +156,5 @@ void mc_go_home() {
   st_go_home();
 }
 
-// void mc_emergency_stop() {
-//   st_go_idle();               // stop all motion immediately
-//   plan_reset_block_buffer();  // drop all queued commands
-// }
 
 

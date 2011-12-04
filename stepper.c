@@ -43,6 +43,9 @@
 #define TICKS_PER_MICROSECOND (F_CPU/1000000)
 #define CYCLES_PER_ACCELERATION_TICK ((TICKS_PER_MICROSECOND*1000000)/ACCELERATION_TICKS_PER_SECOND)
 
+// real-time position in absolute steps
+static int32_t st_position[3]; 
+
 static block_t *current_block;  // A pointer to the block currently being traced
 
 // Variables used by The Stepper Driver Interrupt
@@ -107,6 +110,7 @@ void st_go_idle() {
   TIMSK1 &= ~(1<<OCIE1A);
   // current_block = NULL;
   set_laser_intensity(LASER_OFF);
+  airgas_disable();
 }
 
 
@@ -176,24 +180,6 @@ SIGNAL(TIMER1_COMPA_vect)
   if (current_block != NULL) {
     // See what kind of data is in the plan_buffer
     switch (current_block->type) {
-
-      case TYPE_AIRGAS_DISABLE:
-      airgas_disable();
-      current_block = NULL;
-      plan_discard_current_block();  
-      break;
-
-      case TYPE_AIR_ENABLE:
-      air_enable();
-      current_block = NULL;
-      plan_discard_current_block();  
-      break;
-
-      case TYPE_GAS_ENABLE:
-      gas_enable();
-      current_block = NULL;
-      plan_discard_current_block();  
-      break;
 
       case TYPE_LINE:
       // Execute step displacement profile by bresenham line algorithm
@@ -280,6 +266,24 @@ SIGNAL(TIMER1_COMPA_vect)
         plan_discard_current_block();
       }
       break; 
+
+      case TYPE_AIRGAS_DISABLE:
+      airgas_disable();
+      current_block = NULL;
+      plan_discard_current_block();  
+      break;
+
+      case TYPE_AIR_ENABLE:
+      air_enable();
+      current_block = NULL;
+      plan_discard_current_block();  
+      break;
+
+      case TYPE_GAS_ENABLE:
+      gas_enable();
+      current_block = NULL;
+      plan_discard_current_block();  
+      break;      
     }
     
   } else {
@@ -288,6 +292,29 @@ SIGNAL(TIMER1_COMPA_vect)
   
   out_bits ^= settings.invert_mask;  // Apply stepper invert mask
   busy=false;
+  
+  // keep track of absolute position
+  if ((out_bits >> X_STEP_BIT) & 1) {
+    if ((out_bits >> X_DIRECTION_BIT) & 1 ) {
+      st_position[X_AXIS] += 1;
+    } else {
+      st_position[X_AXIS] -= 1;
+    }
+  }
+  if ((out_bits >> Y_STEP_BIT) & 1) {
+    if ((out_bits >> Y_DIRECTION_BIT) & 1 ) {
+      st_position[Y_AXIS] += 1;
+    } else {
+      st_position[Y_AXIS] -= 1;
+    }
+  }
+  if ((out_bits >> Z_STEP_BIT) & 1) {
+    if ((out_bits >> Z_DIRECTION_BIT) & 1 ) {
+      st_position[Z_AXIS] += 1;
+    } else {
+      st_position[Z_AXIS] -= 1;
+    }
+  }   
 }
 
 
@@ -302,6 +329,7 @@ SIGNAL(TIMER2_OVF_vect)
 // Initialize and start the stepper motor subsystem
 void st_init()
 {
+  clear_vector(st_position);
 
 	// Configure directions of interface pins
   STEPPING_DDR   |= STEPPING_MASK;
@@ -332,7 +360,14 @@ void st_init()
 // Block until all buffered steps are executed
 void st_synchronize()
 {
-  while(plan_get_current_block()) { sleep_mode(); }
+  // this might not be sufficient because it only
+  // waits until the block buffer is empty but not
+  // until the last command has been executed
+  // while(plan_get_current_block()) { sleep_mode(); }
+  
+  // sleep until all queued commands are processed and the
+  // the stepper processor goes idle
+  while(cycle_start) { sleep_mode(); }
 }
 
 // Configures the prescaler and ceiling of timer 1 to produce the given rate as accurately as possible.
@@ -400,10 +435,17 @@ void st_go_home() {
 }
 
 
-// Planner external interface to start stepper interrupt and execute the blocks in queue.
 void st_cycle_start() {
   if (!cycle_start) {
     cycle_start = true;
     st_wake_up();
   }
 }
+
+
+void st_get_position( double *x, double *y, double *z) {
+  *x = st_position[X_AXIS]/settings.steps_per_mm[X_AXIS];
+  *y = st_position[Y_AXIS]/settings.steps_per_mm[Y_AXIS];
+  *z = st_position[Z_AXIS]/settings.steps_per_mm[Z_AXIS];
+}
+

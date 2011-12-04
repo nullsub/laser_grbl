@@ -38,14 +38,14 @@ void st_synchronize();
 // Execute the homing cycle
 void st_go_home();
              
-// Notify the stepper subsystem to start executing the g-code program in buffer.
+// Start stepper interrupt and execute the blocks in queue.
 void st_cycle_start();
 
 // make the stepper subsystem fall asleep
 void st_go_idle();
 
 // Get the actual position of the head in mm.
-// This is as acurate as an open loop system can be.
+// This is as accurate as an open loop system can be.
 void st_get_position( double *x, double *y, double *z);
 
 #endif

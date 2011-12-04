@@ -334,7 +334,9 @@ void plan_buffer_line(double x, double y, double z, double feed_rate, uint8_t in
   int next_buffer_head = next_block_index( block_buffer_head );	
   // If the buffer is full: good! That means we are well ahead of the robot. 
   // Rest here until there is room in the buffer.
-  while(block_buffer_tail == next_buffer_head) { sleep_mode(); }
+  while(block_buffer_tail == next_buffer_head) {
+    sleep_mode();
+  }
   
   // Prepare to set up new block
   block_t *block = &block_buffer[block_buffer_head];
@@ -475,21 +477,29 @@ void plan_buffer_line(double x, double y, double z, double feed_rate, uint8_t in
 
 
 void plan_buffer_command(uint8_t type) {
-  // Calculate the buffer head after we push this byte
-  int next_buffer_head = next_block_index( block_buffer_head );
-  // If the buffer is full: good! That means we are well ahead of the robot. 
-  // Rest here until there is room in the buffer.
-  while(block_buffer_tail == next_buffer_head) { sleep_mode(); }
-  // Prepare to set up new block
-  block_t *block = &block_buffer[block_buffer_head];
+  if (type == TYPE_CANCEL) {
+    // discard all blocks in the buffer
+    // if there is a current block processing it will still finish
+    plan_reset_block_buffer();
+  } else {
+    // Calculate the buffer head after we push this byte
+    int next_buffer_head = next_block_index( block_buffer_head );
+    // If the buffer is full: good! That means we are well ahead of the robot. 
+    // Rest here until there is room in the buffer.
+    while(block_buffer_tail == next_buffer_head) {
+      sleep_mode();
+    }
+    // Prepare to set up new block
+    block_t *block = &block_buffer[block_buffer_head];
   
-  // set block type command
-  block->type = type;
+    // set block type command
+    block->type = type;
   
-  // Move buffer head
-  block_buffer_head = next_buffer_head;
+    // Move buffer head
+    block_buffer_head = next_buffer_head;
   
-  st_cycle_start();
+    st_cycle_start();
+  }
 }
 
 

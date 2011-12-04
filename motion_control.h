@@ -55,7 +55,4 @@ void mc_dwell(double seconds);
 // Send the tool home (not implemented)
 void mc_go_home();
 
-// // stop all commands immediately
-// void mc_emergency_stop();
-
 #endif
