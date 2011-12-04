@@ -39,7 +39,7 @@ void st_synchronize();
 void st_go_home();
              
 // Start stepper interrupt and execute the blocks in queue.
-void st_cycle_start();
+void st_wake_up();
 
 // make the stepper subsystem fall asleep
 void st_go_idle();
@@ -47,5 +47,8 @@ void st_go_idle();
 // Get the actual position of the head in mm.
 // This is as accurate as an open loop system can be.
 void st_get_position( double *x, double *y, double *z);
+double st_get_position_x();
+double st_get_position_y();
+double st_get_position_z();
 
 #endif

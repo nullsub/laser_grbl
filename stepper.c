@@ -86,12 +86,15 @@ static void set_laser_pwm_based_on_actual_speed();
 
 // Stepper state initialization
 void st_wake_up() {
-  // Initialize stepper output bits
-  out_bits = (0) ^ (settings.invert_mask);
-  // Enable steppers by resetting the stepper disable port
-  // STEPPERS_DISABLE_PORT &= ~(1<<STEPPERS_DISABLE_BIT);  //not connected
-  // Enable stepper driver interrupt
-  TIMSK1 |= (1<<OCIE1A);
+  if (!cycle_start) {
+    cycle_start = true;
+    // Initialize stepper output bits
+    out_bits = (0) ^ (settings.invert_mask);
+    // Enable steppers by resetting the stepper disable port
+    // STEPPERS_DISABLE_PORT &= ~(1<<STEPPERS_DISABLE_BIT);  //not connected
+    // Enable stepper driver interrupt
+    TIMSK1 |= (1<<OCIE1A);
+  }
 }
 
 
@@ -99,6 +102,8 @@ void st_wake_up() {
 void st_go_idle() {
   // Cycle finished. Set flag to false.
   cycle_start = false;
+  current_block = NULL;
+  set_laser_intensity(LASER_OFF);
   // Force stepper dwell to lock axes for a defined amount of time to ensure the axes come to a complete
   // stop and not drift from residual inertial forces at the end of the last movement.
   #if STEPPER_IDLE_LOCK_TIME
@@ -109,7 +114,6 @@ void st_go_idle() {
   // Disable stepper driver interrupt
   TIMSK1 &= ~(1<<OCIE1A);
   // current_block = NULL;
-  set_laser_intensity(LASER_OFF);
   airgas_disable();
 }
 
@@ -173,6 +177,7 @@ SIGNAL(TIMER1_COMPA_vect)
         step_events_completed = 0;
       }
     } else {
+      // no more blocks for processing, stop stepper interrupt
       st_go_idle();
     }
   }
@@ -360,14 +365,7 @@ void st_init()
 // Block until all buffered steps are executed
 void st_synchronize()
 {
-  // this might not be sufficient because it only
-  // waits until the block buffer is empty but not
-  // until the last command has been executed
-  // while(plan_get_current_block()) { sleep_mode(); }
-  
-  // sleep until all queued commands are processed and the
-  // the stepper processor goes idle
-  while(cycle_start) { sleep_mode(); }
+  while(plan_get_current_block()) { sleep_mode(); }
 }
 
 // Configures the prescaler and ceiling of timer 1 to produce the given rate as accurately as possible.
@@ -435,17 +433,18 @@ void st_go_home() {
 }
 
 
-void st_cycle_start() {
-  if (!cycle_start) {
-    cycle_start = true;
-    st_wake_up();
-  }
-}
-
-
 void st_get_position( double *x, double *y, double *z) {
   *x = st_position[X_AXIS]/settings.steps_per_mm[X_AXIS];
   *y = st_position[Y_AXIS]/settings.steps_per_mm[Y_AXIS];
   *z = st_position[Z_AXIS]/settings.steps_per_mm[Z_AXIS];
 }
 
+double st_get_position_x() {
+  return st_position[X_AXIS]/settings.steps_per_mm[X_AXIS];
+}
+double st_get_position_y() {
+  return st_position[Y_AXIS]/settings.steps_per_mm[Y_AXIS];
+}
+double st_get_position_z() {
+  return st_position[Z_AXIS]/settings.steps_per_mm[Z_AXIS];
+}

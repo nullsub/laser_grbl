@@ -37,7 +37,6 @@ void mc_dwell(double seconds)
 {
    uint16_t i = floor(seconds);
    st_synchronize();
-   set_laser_intensity(LASER_OFF);
    _delay_ms(floor(1000*(seconds-i))); // Delay millisecond remainder
    while (i > 0) {
      _delay_ms(1000); // Delay one second

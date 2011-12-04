@@ -15,7 +15,7 @@ import os
 
 # 1.) Define port to your Arduino One.
 
-PORT = "/dev/tty.usbmodem621" 
+PORT = "/dev/tty.usbmodemfd121" 
 
 # 2.) Make sure the following points to the avr build tools.
 #     The default here is what you use if you are on OSX with

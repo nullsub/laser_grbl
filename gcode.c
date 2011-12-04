@@ -231,11 +231,11 @@ uint8_t gc_execute_line(char *line) {
     mc_cancel();
     // wait for any current blocks to finish
     // after this the stepper processing goes idle
-    st_synchronize();
+    //mc_synchronize();
     // get the actual position from the stepper processor 
     // and fix various projected positions
-    st_get_position(&gc.position[X_AXIS], &gc.position[Y_AXIS], &gc.position[Z_AXIS]);
-    plan_set_current_position(gc.position[X_AXIS], gc.position[Y_AXIS], gc.position[Z_AXIS]);
+    mc_get_actual_position(&gc.position[X_AXIS], &gc.position[Y_AXIS], &gc.position[Z_AXIS]);    
+    mc_set_current_position(gc.position[X_AXIS], gc.position[Y_AXIS], gc.position[Z_AXIS]);
     // move to the requested location
     mc_line(target[X_AXIS], target[Y_AXIS], target[Z_AXIS], gc.seek_rate, false, LASER_OFF);
     break;

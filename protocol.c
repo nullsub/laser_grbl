@@ -30,6 +30,7 @@
 #include <math.h>
 #include "nuts_bolts.h"
 #include <avr/pgmspace.h>
+#include "stepper.h"
 #define LINE_BUFFER_SIZE 50
 
 static char line[LINE_BUFFER_SIZE];
@@ -38,6 +39,11 @@ static uint8_t char_counter;
 static void status_message(int status_code) {
   if (status_code == 0) {
     printPgmString(PSTR("ok\r\n"));
+    // for debugging, report back actual position
+    // printFloat(st_get_position_x());
+    // printString(", ");
+    // printFloat(st_get_position_y());
+    // printPgmString(PSTR("\r\n"));
   } else {
     printPgmString(PSTR("error: "));
     switch(status_code) {          

@@ -472,7 +472,8 @@ void plan_buffer_line(double x, double y, double z, double feed_rate, uint8_t in
 
   if (acceleration_manager_enabled) { planner_recalculate(); }  
 
-  st_cycle_start();
+  // make sure the stepper interrupt is processing
+  st_wake_up();
 }
 
 
@@ -481,6 +482,7 @@ void plan_buffer_command(uint8_t type) {
     // discard all blocks in the buffer
     // if there is a current block processing it will still finish
     plan_reset_block_buffer();
+    st_go_idle();
   } else {
     // Calculate the buffer head after we push this byte
     int next_buffer_head = next_block_index( block_buffer_head );
@@ -497,8 +499,9 @@ void plan_buffer_command(uint8_t type) {
   
     // Move buffer head
     block_buffer_head = next_buffer_head;
-  
-    st_cycle_start();
+
+    // make sure the stepper interrupt is processing  
+    st_wake_up();
   }
 }
 
