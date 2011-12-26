@@ -26,7 +26,7 @@
 #include "config.h"
 
 
-// Commands types the planner and stepper can schedule for execution 
+// Command types the planner and stepper can schedule for execution 
 #define TYPE_CANCEL 0
 #define TYPE_LINE 1
 #define TYPE_AIRGAS_DISABLE 2

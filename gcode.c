@@ -60,8 +60,6 @@
 #define PROGRAM_FLOW_PAUSED 1
 #define PROGRAM_FLOW_COMPLETED 2
 
-#define SPINDLE_DIRECTION_CW 0
-#define SPINDLE_DIRECTION_CCW 1
 
 
 typedef struct {

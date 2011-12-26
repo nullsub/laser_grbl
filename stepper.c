@@ -114,7 +114,6 @@ void st_go_idle() {
   // Disable stepper driver interrupt
   TIMSK1 &= ~(1<<OCIE1A);
   // current_block = NULL;
-  airgas_disable();
 }
 
 
