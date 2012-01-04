@@ -103,6 +103,8 @@ void st_go_idle() {
   // Cycle finished. Set flag to false.
   cycle_start = false;
   current_block = NULL;
+  // Disable stepper driver interrupt
+  TIMSK1 &= ~(1<<OCIE1A);
   set_laser_intensity(LASER_OFF);
   // Force stepper dwell to lock axes for a defined amount of time to ensure the axes come to a complete
   // stop and not drift from residual inertial forces at the end of the last movement.
@@ -111,8 +113,6 @@ void st_go_idle() {
   #endif
   // Disable steppers by setting stepper disable
   // STEPPERS_DISABLE_PORT |= (1<<STEPPERS_DISABLE_BIT);  //not connected
-  // Disable stepper driver interrupt
-  TIMSK1 &= ~(1<<OCIE1A);
   // current_block = NULL;
 }
 
