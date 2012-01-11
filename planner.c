@@ -423,7 +423,7 @@ void plan_buffer_line(double x, double y, double z, double feed_rate, uint8_t in
                          - previous_unit_vec[Z_AXIS] * unit_vec[Z_AXIS] ;
                            
       // Skip and use default max junction speed for 0 degree acute junction.
-      if (cos_theta < 0.95) {
+       if (cos_theta < 0.95) {
         vmax_junction = min(previous_nominal_speed,block->nominal_speed);
         // Skip and avoid divide by zero for straight junctions at 180 degrees. Limit to min() of nominal speeds.
         if (cos_theta > -0.95) {
