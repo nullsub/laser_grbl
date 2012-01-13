@@ -35,6 +35,7 @@
 #include "stepper.h"
 #include "airgas_control.h"
 
+
 #define MM_PER_INCH (25.4)
 
 #define NEXT_ACTION_DEFAULT 0
@@ -191,7 +192,7 @@ uint8_t gc_execute_line(char *line) {
       if (gc.inverse_feed_rate_mode) {
         inverse_feed_rate = unit_converted_value; // seconds per motion for this motion only
       } else {          
-        if (gc.motion_mode == MOTION_MODE_SEEK) {
+        if (gc.motion_mode == MOTION_MODE_SEEK || gc.motion_mode == MOTION_MODE_CANCEL) {
           gc.seek_rate = unit_converted_value;
         } else {
           gc.feed_rate = unit_converted_value; // millimeters per minute
@@ -225,16 +226,8 @@ uint8_t gc_execute_line(char *line) {
     case NEXT_ACTION_CANCEL:
     // cancel any planned blocks
     // this effectively resets the block buffer of the planer
-    // but also causes the issue to void the projected any prospected positions
     mc_cancel();
-    // wait for any current blocks to finish
-    // after this the stepper processing goes idle
-    //mc_synchronize();
-    // get the actual position from the stepper processor 
-    // and fix various projected positions
-    mc_get_actual_position(&gc.position[X_AXIS], &gc.position[Y_AXIS], &gc.position[Z_AXIS]);    
-    mc_set_current_position(gc.position[X_AXIS], gc.position[Y_AXIS], gc.position[Z_AXIS]);
-    // move to the requested location
+    mc_get_actual_position(&gc.position[X_AXIS], &gc.position[Y_AXIS], &gc.position[Z_AXIS]);
     mc_line(target[X_AXIS], target[Y_AXIS], target[Z_AXIS], gc.seek_rate, false, LASER_OFF);
     break;
     case NEXT_ACTION_AIRGAS_DISABLE:

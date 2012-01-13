@@ -24,6 +24,7 @@
 #include <inttypes.h>
 #include <math.h>       
 #include <stdlib.h>
+#include <util/delay.h>
 
 #include "planner.h"
 #include "nuts_bolts.h"
@@ -309,11 +310,6 @@ void plan_discard_current_block() {
   }
 }
 
-void plan_reset_block_buffer() {
-  block_buffer_head = 0;
-  block_buffer_tail = 0;
-}
-
 block_t *plan_get_current_block() {
   if (block_buffer_head == block_buffer_tail) { return(NULL); }
   return(&block_buffer[block_buffer_tail]);
@@ -480,9 +476,18 @@ void plan_buffer_line(double x, double y, double z, double feed_rate, uint8_t in
 void plan_buffer_command(uint8_t type) {
   if (type == TYPE_CANCEL) {
     // discard all blocks in the buffer
-    // if there is a current block processing it will still finish
-    plan_reset_block_buffer();
-    st_go_idle();
+    // block_t *current_block = plan_get_current_block();
+    // current_block->accelerate_until = 0   // force deceleration
+    // current_block->decelerate_after = 0;  // force deceleration
+    // if (block_buffer_head > block_buffer_tail + 1) {
+    //   block_buffer_head = block_buffer_tail + 2;  // leave two blocks
+    // }
+    // if (acceleration_manager_enabled) { planner_recalculate(); } 
+    // st_synchronize(); //wait until this last block finishes    
+    st_go_idle()
+    block_buffer_tail = 0;
+    block_buffer_head = 0; 
+    plan_set_current_position(st_get_position_x(), st_get_position_y(), st_get_position_z());
   } else {
     // Calculate the buffer head after we push this byte
     int next_buffer_head = next_block_index( block_buffer_head );
