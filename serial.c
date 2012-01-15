@@ -26,12 +26,7 @@
 #include "serial.h"
 
 
-#ifdef __AVR_ATmega328P__
 #define RX_BUFFER_SIZE 256
-#else
-#define RX_BUFFER_SIZE 64
-#endif
-
 #define TX_BUFFER_SIZE 16
 
 uint8_t rx_buffer[RX_BUFFER_SIZE];
@@ -48,8 +43,7 @@ static void set_baud_rate(long baud) {
 	UBRR0L = UBRR0_value;
 }
 
-void serial_init(long baud)
-{
+void serial_init(long baud) {
   set_baud_rate(baud);
   
 	/* baud doubler off  - Only needed on Uno XXX */
@@ -99,8 +93,7 @@ SIGNAL(USART_UDRE_vect) {
   tx_buffer_tail = tail;
 }
 
-uint8_t serial_read()
-{
+uint8_t serial_read() {
 	if (rx_buffer_head == rx_buffer_tail) {
 		return SERIAL_NO_DATA;
 	} else {
@@ -111,8 +104,7 @@ uint8_t serial_read()
 	}
 }
 
-SIGNAL(USART_RX_vect)
-{
+SIGNAL(USART_RX_vect) {
 	uint8_t data = UDR0;
 	uint8_t next_head = rx_buffer_head + 1;
 	if (next_head == RX_BUFFER_SIZE) { next_head = 0; }

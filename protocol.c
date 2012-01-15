@@ -62,8 +62,7 @@ static void status_message(int status_code) {
   }
 }
 
-void protocol_init() 
-{
+void protocol_init() {
   printPgmString(PSTR("\r\nLasaurGrbl " GRBL_VERSION));
   printPgmString(PSTR("\r\n"));  
 }
@@ -77,8 +76,7 @@ uint8_t protocol_execute_line(char *line) {
   }
 }
 
-void protocol_process()
-{
+void protocol_process() {
   char c;
   uint8_t iscomment = false;
   while((c = serial_read()) != SERIAL_NO_DATA) 
