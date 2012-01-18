@@ -24,7 +24,7 @@
 #define config_h
 
 
-#define BAUD_RATE 57600
+#define BAUD_RATE 9600
 #define LASER_OFF 0
     
 #define LIMIT_OVERWRITE_DDR     DDRD

@@ -26,12 +26,15 @@
 #include "serial.h"
 
 
-#define RX_BUFFER_SIZE 256
+#define RX_BUFFER_SIZE 128
+#define RX_XOFF_WHEN_LEFT_COUNT 16
 #define TX_BUFFER_SIZE 16
 
 uint8_t rx_buffer[RX_BUFFER_SIZE];
 uint8_t rx_buffer_head = 0;
 uint8_t rx_buffer_tail = 0;
+volatile uint8_t rx_buffer_open_slots = RX_BUFFER_SIZE;
+volatile uint8_t xoff_flag = 0;
 
 uint8_t tx_buffer[TX_BUFFER_SIZE];
 uint8_t tx_buffer_head = 0;
@@ -57,6 +60,9 @@ void serial_init(long baud) {
   UCSR0B |= 1<<RXCIE0;
 	  
 	// defaults to 8-bit, no parity, 1 stop bit
+	
+	// send a XON to indicate device is ready to receive
+  serial_write('\x11');
 }
 
 void serial_write(uint8_t data) {
@@ -76,21 +82,26 @@ void serial_write(uint8_t data) {
 }
 
 // Data Register Empty Interrupt handler
-SIGNAL(USART_UDRE_vect) {  
+SIGNAL(USART_UDRE_vect) {
   // temporary tx_buffer_tail (to optimize for volatile)
   uint8_t tail = tx_buffer_tail;
+  
+  if(xoff_flag) {
+    UDR0 = '\x13';  //send XOFF
+    xoff_flag = 0;
+  } else {
+    // Send a byte from the buffer	
+    UDR0 = tx_buffer[tail];
 
-  // Send a byte from the buffer	
-  UDR0 = tx_buffer[tail];
-
-  // Update tail position
-  tail ++;
-  if (tail == TX_BUFFER_SIZE) { tail = 0; }
-
+    // Update tail position
+    tail ++;
+    if (tail == TX_BUFFER_SIZE) { tail = 0; }
+    
+    tx_buffer_tail = tail;
+  }
+  
   // Turn off Data Register Empty Interrupt to stop tx-streaming if this concludes the transfer
-  if (tail == tx_buffer_head) { UCSR0B &= ~(1 << UDRIE0); }
-
-  tx_buffer_tail = tail;
+  if (tail == tx_buffer_head) { UCSR0B &= ~(1 << UDRIE0); }  
 }
 
 uint8_t serial_read() {
@@ -99,6 +110,7 @@ uint8_t serial_read() {
 	} else {
 		uint8_t data = rx_buffer[rx_buffer_tail];
 		rx_buffer_tail++;
+    rx_buffer_open_slots++;
 		if (rx_buffer_tail == RX_BUFFER_SIZE) { rx_buffer_tail = 0; }
 		return data;
 	}
@@ -113,5 +125,10 @@ SIGNAL(USART_RX_vect) {
 	if (next_head != rx_buffer_tail) {
 		rx_buffer[rx_buffer_head] = data;
 		rx_buffer_head = next_head;
+    rx_buffer_open_slots--;
+    if(rx_buffer_open_slots <= RX_XOFF_WHEN_LEFT_COUNT) {
+      xoff_flag = 1;
+    	UCSR0B |=  (1 << UDRIE0);  // Enable Data Register Empty Interrupt
+    }
 	}
 }
