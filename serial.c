@@ -27,14 +27,17 @@
 
 
 #define RX_BUFFER_SIZE 128
-#define RX_XOFF_WHEN_LEFT_COUNT 16
 #define TX_BUFFER_SIZE 16
 
 uint8_t rx_buffer[RX_BUFFER_SIZE];
 uint8_t rx_buffer_head = 0;
 uint8_t rx_buffer_tail = 0;
+
+#define RX_MIN_OPEN_SLOTS 16  # when to trigger XONXOFF event
 volatile uint8_t rx_buffer_open_slots = RX_BUFFER_SIZE;
 volatile uint8_t xoff_flag = 0;
+volatile uint8_t xon_flag = 0;
+volatile uint8_t xon_remote_state = 1;
 
 uint8_t tx_buffer[TX_BUFFER_SIZE];
 uint8_t tx_buffer_head = 0;
@@ -63,6 +66,7 @@ void serial_init(long baud) {
 	
 	// send a XON to indicate device is ready to receive
   serial_write('\x11');
+  xon_remote_state = 1;
 }
 
 void serial_write(uint8_t data) {
@@ -86,9 +90,14 @@ SIGNAL(USART_UDRE_vect) {
   // temporary tx_buffer_tail (to optimize for volatile)
   uint8_t tail = tx_buffer_tail;
   
-  if(xoff_flag) {
+  if (xoff_flag) {
     UDR0 = '\x13';  //send XOFF
     xoff_flag = 0;
+    xon_remote_state = 0;
+  } else if (xon_flag) {
+    UDR0 = '\x11';  //send XON
+    xon_flag = 0;
+    xon_remote_state = 1;
   } else {
     // Send a byte from the buffer	
     UDR0 = tx_buffer[tail];
@@ -126,9 +135,16 @@ SIGNAL(USART_RX_vect) {
 		rx_buffer[rx_buffer_head] = data;
 		rx_buffer_head = next_head;
     rx_buffer_open_slots--;
-    if(rx_buffer_open_slots <= RX_XOFF_WHEN_LEFT_COUNT) {
-      xoff_flag = 1;
-    	UCSR0B |=  (1 << UDRIE0);  // Enable Data Register Empty Interrupt
-    }
+    
+  	// generate flow control events
+    if (rx_buffer_open_slots <= RX_MIN_OPEN_SLOTS) {
+      if (xon_remote_state == 1) {
+        xoff_flag = 1;
+      	UCSR0B |=  (1 << UDRIE0);  // Enable Data Register Empty Interrupt
+      }
+    } else if (xon_remote_state == 0) {
+      xon_flag = 1;
+    	UCSR0B |=  (1 << UDRIE0);  // Enable Data Register Empty Interrupt      
+    }		
 	}
 }
