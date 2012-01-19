@@ -59,16 +59,6 @@
 #define Y_DIRECTION_BIT         4
 #define Z_DIRECTION_BIT         5
 
-// laser pwm pin is PD6 (hardware PWM for timer0)
-// no need to set the following
-// #define LASER_PWM_DDR  DDRD
-// #define LASER_PWM_PORT  PORTD
-// #define LASER_PWM_PIN  6
-
-#define LASER_ENABLE_DDR         DDRD
-#define LASER_ENABLE_PORT        PORTD
-#define LASER_ENABLE_BIT           7
-
 
 // This parameter sets the delay time before disabling the steppers after the final block of movement.
 // A short delay ensures the steppers come to a complete stop and the residual inertial force in the 
