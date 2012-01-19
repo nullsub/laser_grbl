@@ -322,7 +322,7 @@ SIGNAL(TIMER1_COMPA_vect)
 }
 
 
-// This interrupt is set up by SIG_OUTPUT_COMPARE1A when it sets the motor port bits. It resets
+// This interrupt is set up by SIG_OUTPUT_COMPAREA when it sets the motor port bits. It resets
 // the motor port after a short period (settings.pulse_microseconds) completing one step cycle.
 SIGNAL(TIMER2_OVF_vect)
 {
