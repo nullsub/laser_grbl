@@ -91,11 +91,11 @@ SIGNAL(USART_UDRE_vect) {
   uint8_t tail = tx_buffer_tail;
   
   if (xoff_flag) {
-    UDR0 = '\x13';  //send XOFF
+    UDR0 = '<';  //send XOFF
     xoff_flag = 0;
     xon_remote_state = 0;
   } else if (xon_flag) {
-    UDR0 = '\x11';  //send XON
+    UDR0 = '>';  //send XON
     xon_flag = 0;
     xon_remote_state = 1;
   } else {
@@ -131,6 +131,10 @@ uint8_t serial_read() {
 		if (rx_buffer_tail == RX_BUFFER_SIZE) { rx_buffer_tail = 0; }		
 		return data;
 	}
+}
+
+uint8_t serial_available() {
+  return RX_BUFFER_SIZE - rx_buffer_open_slots;
 }
 
 SIGNAL(USART_RX_vect) {

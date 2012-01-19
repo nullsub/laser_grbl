@@ -85,7 +85,8 @@ void protocol_process() {
       if (char_counter > 0) {// Line is complete. Then execute!
         line[char_counter] = 0; // terminate string
         int status = protocol_execute_line(line);
-        if (status >= STATUS_OK) {printString(line);}  // DEBUG: echo everything
+        // if (status >= STATUS_OK) {printString(line);}  // DEBUG: echo everything
+        printInteger(serial_available());  // DEBUG: echo everything
         status_message(status);
       } else { 
         // Empty or comment line. Skip block.
