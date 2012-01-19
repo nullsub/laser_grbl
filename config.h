@@ -38,7 +38,8 @@
 #define DOOR_BIT                5
   
 #define LIMIT_DDR               DDRC
-#define LIMIT_PORT              PORTC  
+#define LIMIT_PORT              PORTC
+#define LIMIT_PIN               PINC
 #define X1_LIMIT_BIT            0
 #define X2_LIMIT_BIT            1
 #define Y1_LIMIT_BIT            2
