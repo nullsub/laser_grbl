@@ -27,17 +27,17 @@
 
 
 #define RX_BUFFER_SIZE 128
-#define TX_BUFFER_SIZE 16
+#define TX_BUFFER_SIZE 32
 
 uint8_t rx_buffer[RX_BUFFER_SIZE];
 uint8_t rx_buffer_head = 0;
 uint8_t rx_buffer_tail = 0;
 
-#define RX_MIN_OPEN_SLOTS 16  # when to trigger XONXOFF event
+#define RX_MIN_OPEN_SLOTS 32  // when to trigger XONXOFF event
 volatile uint8_t rx_buffer_open_slots = RX_BUFFER_SIZE;
 volatile uint8_t xoff_flag = 0;
 volatile uint8_t xon_flag = 0;
-volatile uint8_t xon_remote_state = 1;
+volatile uint8_t xon_remote_state = 0;
 
 uint8_t tx_buffer[TX_BUFFER_SIZE];
 uint8_t tx_buffer_head = 0;
@@ -65,8 +65,8 @@ void serial_init(long baud) {
 	// defaults to 8-bit, no parity, 1 stop bit
 	
 	// send a XON to indicate device is ready to receive
-  serial_write('\x11');
-  xon_remote_state = 1;
+	xon_flag = 1;
+	UCSR0B |=  (1 << UDRIE0);  // enable tx interrupt
 }
 
 void serial_write(uint8_t data) {
@@ -103,7 +103,7 @@ SIGNAL(USART_UDRE_vect) {
     UDR0 = tx_buffer[tail];
 
     // Update tail position
-    tail ++;
+    tail++;
     if (tail == TX_BUFFER_SIZE) { tail = 0; }
     
     tx_buffer_tail = tail;
@@ -120,7 +120,15 @@ uint8_t serial_read() {
 		uint8_t data = rx_buffer[rx_buffer_tail];
 		rx_buffer_tail++;
     rx_buffer_open_slots++;
-		if (rx_buffer_tail == RX_BUFFER_SIZE) { rx_buffer_tail = 0; }
+    
+    if (xon_remote_state == 0) {  // generate flow control event
+      if (rx_buffer_open_slots > RX_MIN_OPEN_SLOTS) {
+        xon_flag = 1;
+      	UCSR0B |=  (1 << UDRIE0);  // Enable Data Register Empty Interrupt      
+      }
+    }
+    
+		if (rx_buffer_tail == RX_BUFFER_SIZE) { rx_buffer_tail = 0; }		
 		return data;
 	}
 }
@@ -136,15 +144,12 @@ SIGNAL(USART_RX_vect) {
 		rx_buffer_head = next_head;
     rx_buffer_open_slots--;
     
-  	// generate flow control events
-    if (rx_buffer_open_slots <= RX_MIN_OPEN_SLOTS) {
-      if (xon_remote_state == 1) {
+    if (xon_remote_state == 1) {  // generate flow control event
+      if (rx_buffer_open_slots <= RX_MIN_OPEN_SLOTS) {
         xoff_flag = 1;
       	UCSR0B |=  (1 << UDRIE0);  // Enable Data Register Empty Interrupt
       }
-    } else if (xon_remote_state == 0) {
-      xon_flag = 1;
-    	UCSR0B |=  (1 << UDRIE0);  // Enable Data Register Empty Interrupt      
-    }		
+    }
+    
 	}
 }
