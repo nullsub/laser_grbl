@@ -3,74 +3,139 @@
 # Copyright (c) 2011 Nortd Labs
 # Open Source by the terms of the Gnu Public License (GPL3) or higher.
 
+import os, sys
 
-import os
 
 
 # How to use this file
 # =====================
 
-# I am on OSX with the Arduino IDE (022) installed. While I don't use the IDE
-# directly I use the tool chain of the Arduino IDE.
+# (1)
+# Make sure you have the Arduino IDE installed (we've tested this on 022 and newer).
+# While flash.py does not use the IDE directly it makes use of its tool chain.
+# Please verify the following locations are correct for you platform:
 
-# 1.) Define port to your Arduino One.
+if sys.platform == "darwin":  # OSX
+    AVRDUDEAPP    = "/Applications/Arduino.app/Contents/Resources/Java/hardware/tools/avr/bin/avrdude"
+    AVRGCCAPP     = "/Applications/Arduino.app/Contents/Resources/Java/hardware/tools/avr/bin/avr-gcc"
+    AVROBJCOPYAPP = "/Applications/Arduino.app/Contents/Resources/Java/hardware/tools/avr/bin/avr-objcopy"
+    AVRSIZEAPP    = "/Applications/Arduino.app/Contents/Resources/Java/hardware/tools/avr/bin/avr-size"
+    AVROBJDUMPAPP = "/Applications/Arduino.app/Contents/Resources/Java/hardware/tools/avr/bin/avr-objdump"
+    AVRDUDECONFIG = "/Applications/Arduino.app/Contents/Resources/Java/hardware/tools/avr/etc/avrdude.conf"
+    
+elif sys.platform == "win32": # Windows
+    AVRDUDEAPP    = "C:\\arduino\\hardware\\tools\\avr\\bin\\avrdude"
+    AVRGCCAPP     = "C:\\arduino\\hardware\\tools\\avr\\bin\\avr-gcc"
+    AVROBJCOPYAPP = "C:\\arduino\\hardware\\tools\\avr\\bin\\avr-objcopy"
+    AVRSIZEAPP    = "C:\\arduino\\hardware\\tools\\avr\\bin\\avr-size"
+    AVROBJDUMPAPP = "C:\\arduino\\hardware\\tools\\avr\\bin\\avr-objdump"
+    AVRDUDECONFIG = "C:\\arduino\\hardware\\tools\\avr\\etc\\avrdude.conf"
+    
+elif sys.platform == "linux" or sys.platform == "linux2":  #Linux
+    AVRDUDEAPP    = "avrdude"
+    AVRGCCAPP     = "avr-gcc"
+    AVROBJCOPYAPP = "avr-objcopy"
+    AVRSIZEAPP    = "avr-size"
+    AVROBJDUMPAPP = "avr-objdump"
+    AVRDUDECONFIG = "/etc/avrdude.conf"
+    
+    
+# (2)
+# Define the serial port to the Lasersaur controller as the first argument to this
+# script. alternatively you can create a lasaurapp.conf file with the port as 
+# the first line. Also on OSX and Linux this script usually finds the right port
+# automatically.
 
-PORT = "/dev/tty.usbmodemfd121"
 
-# 2.) Make sure the following points to the avr build tools.
-#     The default here is what you use if you are on OSX with
-#     the Arduino IDE installed.
-
-#OSX
-AVRDUDEAPP    = "/Applications/Arduino.app/Contents/Resources/Java/hardware/tools/avr/bin/avrdude"
-AVRGCCAPP     = "/Applications/Arduino.app/Contents/Resources/Java/hardware/tools/avr/bin/avr-gcc"
-AVROBJCOPYAPP = "/Applications/Arduino.app/Contents/Resources/Java/hardware/tools/avr/bin/avr-objcopy"
-AVRSIZEAPP    = "/Applications/Arduino.app/Contents/Resources/Java/hardware/tools/avr/bin/avr-size"
-AVROBJDUMPAPP = "/Applications/Arduino.app/Contents/Resources/Java/hardware/tools/avr/bin/avr-objdump"
-AVRDUDECONFIG = "/Applications/Arduino.app/Contents/Resources/Java/hardware/tools/avr/etc/avrdude.conf"
-
-# Windows
-# AVRDUDEAPP    = "C:\Program Files\arduino-0022\hardware\tools\avr\bin\avrdude"
-# AVRGCCAPP     = "C:\Program Files\arduino-0022\hardware\tools\avr\bin\avr-gcc"
-# AVROBJCOPYAPP = "C:\Program Files\arduino-0022\hardware\tools\avr\bin\avr-objcopy"
-# AVRSIZEAPP    = "C:\Program Files\arduino-0022\hardware\tools\avr\bin\avr-size"
-# AVROBJDUMPAPP = "C:\Program Files\arduino-0022\hardware\tools\avr\bin\avr-objdump"
-# AVRDUDECONFIG = "C:\Program Files\arduino-0022\hardware\tools\avr\etc\avrdude.conf"
+# (3)
+# Compile LasaurGrbl and load it to an Arduino Uno via USB. In the Teminal/Command Line
+# from the location of this flash.py type: python flash.py
 
 
-# 3.) Compile LasaurGrbl and load it to an Arduino Uno via USB
-#     In the Teminal from the location of this flash.py type: 
-#     python flash.py
 
 
-##########################################################
-# Tune the lines below only if you know what you are doing:
+# =============================================================================
+# No need to edit anything below this line
 
-DEVICE = "atmega328p"
-CLOCK = "16000000"
-PROGRAMMER = "avrisp"    # use this for bootloader
-# PROGRAMMER = "usbtiny"    # use this for programmer
-BITRATE = "115200"
+SERIAL_PORT = None
+CONFIG_FILE = "lasaurapp.conf"
+GUESS_PPREFIX = "tty.usbmodem"
 
-BUILDNAME = "LasaurGrbl"
-OBJECTS  = ["main", "motion_control", "gcode", "serial", "protocol", "stepper", 
-            "eeprom", "settings", "planner", "nuts_bolts", "limits", "print", "laser_control",
-            "airgas_control"]
+
+def build():
+    SERIAL_PORT = '/dev/tty.usbmodemfd121'
+    DEVICE = "atmega328p"
+    CLOCK = "16000000"
+    PROGRAMMER = "avrisp"    # use this for bootloader
+    # PROGRAMMER = "usbtiny"    # use this for programmer
+    BITRATE = "115200"
+
+    BUILDNAME = "LasaurGrbl"
+    OBJECTS  = ["main", "motion_control", "gcode", "serial", "protocol", "stepper", 
+                "eeprom", "settings", "planner", "nuts_bolts", "limits", "print", "laser_control",
+                "airgas_control"]
              
-COMPILE = AVRGCCAPP + " -Wall -Os -DF_CPU=" + CLOCK + " -mmcu=" + DEVICE + " -I. -ffunction-sections"
+    COMPILE = AVRGCCAPP + " -Wall -Os -DF_CPU=" + CLOCK + " -mmcu=" + DEVICE + " -I. -ffunction-sections"
 
-for fileobj in OBJECTS:
-  os.system('%(compile)s -c %(obj)s.c -o %(obj)s.o' % {'compile': COMPILE, 'obj':fileobj});
+    for fileobj in OBJECTS:
+      os.system('%(compile)s -c %(obj)s.c -o %(obj)s.o' % {'compile': COMPILE, 'obj':fileobj});
   
-os.system('%(compile)s -o main.elf %(alldoto)s  -lm' % {'compile': COMPILE, 'alldoto':".o ".join(OBJECTS)+'.o'});
+    os.system('%(compile)s -o main.elf %(alldoto)s  -lm' % {'compile': COMPILE, 'alldoto':".o ".join(OBJECTS)+'.o'});
 
-#os.system('rm -f %(product).hex' % {'product':BUILDNAME})
+    #os.system('rm -f %(product).hex' % {'product':BUILDNAME})
 
-os.system('%(objcopy)s -j .text -j .data -O ihex main.elf %(product)s.hex' % {'objcopy': AVROBJCOPYAPP, 'obj':fileobj, 'product':BUILDNAME});
+    os.system('%(objcopy)s -j .text -j .data -O ihex main.elf %(product)s.hex' % {'objcopy': AVROBJCOPYAPP, 'obj':fileobj, 'product':BUILDNAME});
 
-os.system('%(size)s *.hex *.elf *.o' % {'size':AVRSIZEAPP})
+    os.system('%(size)s *.hex *.elf *.o' % {'size':AVRSIZEAPP})
 
-os.system('%(dude)s -c %(programmer)s -b %(bps)s -P %(port)s -p %(device)s -C %(dudeconf)s -B 10 -F -U flash:w:%(product)s.hex:i' % {'dude':AVRDUDEAPP, 'programmer':PROGRAMMER, 'bps':BITRATE, 'port':PORT, 'device':DEVICE, 'dudeconf':AVRDUDECONFIG, 'product':BUILDNAME})
+    os.system('%(dude)s -c %(programmer)s -b %(bps)s -P %(port)s -p %(device)s -C %(dudeconf)s -B 10 -F -U flash:w:%(product)s.hex:i' % {'dude':AVRDUDEAPP, 'programmer':PROGRAMMER, 'bps':BITRATE, 'port':SERIAL_PORT, 'device':DEVICE, 'dudeconf':AVRDUDECONFIG, 'product':BUILDNAME})
 
-# fuse setting taken over from Makefile for reference
-#os.system('%(dude)s -U hfuse:w:0xd2:m -U lfuse:w:0xff:m' % {'dude':AVRDUDEAPP})
+    # fuse setting taken over from Makefile for reference
+    #os.system('%(dude)s -U hfuse:w:0xd2:m -U lfuse:w:0xff:m' % {'dude':AVRDUDEAPP})
+
+
+
+## define serial port
+##
+if len(sys.argv) == 2:
+    # (1) get the serial device from the argument list
+    SERIAL_PORT = sys.argv[1]
+    print "Using serial device '"+ SERIAL_PORT +"' from command line."
+else:    
+    if os.path.isfile(CONFIG_FILE):
+        # (2) get the serial device from the config file
+        fp = open(CONFIG_FILE)
+        line = fp.readline().strip()
+        if len(line) > 3:
+            SERIAL_PORT = line
+            print "Using serial device '"+ SERIAL_PORT +"' from '" + CONFIG_FILE + "'."
+            
+        
+
+if not SERIAL_PORT:
+    # (3) try best guess the serial device if on linux or osx
+    devices = os.listdir("/dev")
+    for device in devices:
+        if device[:len(GUESS_PPREFIX)] == GUESS_PPREFIX:
+            SERIAL_PORT = "/dev/" + device
+            print "Using serial device '"+ SERIAL_PORT +"' by best guess."
+            break
+    
+            
+
+if SERIAL_PORT:
+    build()
+else:         
+    print "-----------------------------------------------------------------------------"
+    print "ERROR: flash.py doesn't know what serial device to connect to!"
+    print "On Linux or OSX this is something like '/dev/tty.usbmodemfd121' and on"
+    print "Windows this is something like 'COM1', 'COM2', 'COM3', ..."
+    print "The serial port can be supplied in one of the following ways:"
+    print "(1) First argument on the  command line."
+    print "(2) In a config file named '" + CONFIG_FILE + "' (located in same directory)"
+    print "    with the serial port string on the first line."
+    print "(3) Best guess. On Linux and OSX the app can guess the serial name by"
+    print "    choosing the first device it finds starting with '"+ GUESS_PPREFIX +"'."
+    print "-----------------------------------------------------------------------------"
+    
+

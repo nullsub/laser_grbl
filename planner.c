@@ -486,7 +486,7 @@ void plan_buffer_command(uint8_t type) {
     // st_synchronize(); //wait until this last block finishes    
     st_go_idle();
     block_buffer_tail = 0;
-    block_buffer_head = 0; 
+    block_buffer_head = 0;
     plan_set_current_position(st_get_position_x(), st_get_position_y(), st_get_position_z());
   } else {
     // Calculate the buffer head after we push this byte

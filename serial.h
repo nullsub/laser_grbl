@@ -31,5 +31,7 @@ void serial_init(long baud);
 void serial_write(uint8_t data);
 
 uint8_t serial_read();
+uint8_t serial_available();
+
 
 #endif

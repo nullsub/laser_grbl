@@ -84,7 +84,9 @@ void protocol_process() {
     if ((c == '\n') || (c == '\r')) { // End of block reached
       if (char_counter > 0) {// Line is complete. Then execute!
         line[char_counter] = 0; // terminate string
-        status_message(protocol_execute_line(line));
+        int status = protocol_execute_line(line);
+        // printInteger(serial_available());  // for debugging, reports the buffer saturation
+        status_message(status);
       } else { 
         // Empty or comment line. Skip block.
         status_message(STATUS_OK); // Send status message for syncing purposes.
