@@ -30,6 +30,7 @@
 #include <math.h>
 #include "nuts_bolts.h"
 #include <avr/pgmspace.h>
+#include "stepper.h"
 #define LINE_BUFFER_SIZE 50
 
 static char line[LINE_BUFFER_SIZE];
@@ -38,6 +39,11 @@ static uint8_t char_counter;
 static void status_message(int status_code) {
   if (status_code == 0) {
     printPgmString(PSTR("ok\r\n"));
+    // for debugging, report back actual position
+    // printFloat(st_get_position_x());
+    // printString(", ");
+    // printFloat(st_get_position_y());
+    // printPgmString(PSTR("\r\n"));
   } else {
     printPgmString(PSTR("error: "));
     switch(status_code) {          
@@ -56,8 +62,7 @@ static void status_message(int status_code) {
   }
 }
 
-void protocol_init() 
-{
+void protocol_init() {
   printPgmString(PSTR("\r\nLasaurGrbl " GRBL_VERSION));
   printPgmString(PSTR("\r\n"));  
 }
@@ -71,8 +76,7 @@ uint8_t protocol_execute_line(char *line) {
   }
 }
 
-void protocol_process()
-{
+void protocol_process() {
   char c;
   uint8_t iscomment = false;
   while((c = serial_read()) != SERIAL_NO_DATA) 
@@ -80,7 +84,9 @@ void protocol_process()
     if ((c == '\n') || (c == '\r')) { // End of block reached
       if (char_counter > 0) {// Line is complete. Then execute!
         line[char_counter] = 0; // terminate string
-        status_message(protocol_execute_line(line));
+        int status = protocol_execute_line(line);
+        // printInteger(serial_available());  // for debugging, reports the buffer saturation
+        status_message(status);
       } else { 
         // Empty or comment line. Skip block.
         status_message(STATUS_OK); // Send status message for syncing purposes.

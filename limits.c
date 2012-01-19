@@ -26,7 +26,21 @@ along with Grbl. If not, see <http://www.gnu.org/licenses/>.
 
 void limits_init() {
   LIMIT_DDR &= ~(LIMIT_MASK);
-  LIMIT_PORT |= LIMIT_MASK; //activate pull-up resistors
+  LIMIT_PORT |= LIMIT_MASK;     //activate pull-up resistors  
+
+  // define as output pin
+  LIMIT_OVERWRITE_DDR |= 1<<LIMIT_OVERWRITE_BIT;
+  limit_overwrite_disable();
+}
+
+
+void limit_overwrite_enable() {
+  // sinking the pin overwrites the limit stop hard logic
+  LIMIT_OVERWRITE_PORT &= ~(1<<LIMIT_OVERWRITE_BIT);  
+}
+
+void limit_overwrite_disable() {
+  LIMIT_OVERWRITE_PORT |= (1<<LIMIT_OVERWRITE_BIT); 
 }
 
 static void homing_cycle(bool x_axis, bool y_axis, bool z_axis, bool reverse_direction, uint32_t microseconds_per_pulse) {

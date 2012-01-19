@@ -24,8 +24,8 @@
 #include <avr/io.h>
 #include <avr/sleep.h>
 
-//#define LIMIT_MASK ((1<<X_LIMIT_BIT)|(1<<Y_LIMIT_BIT)|(1<<Z_LIMIT_BIT)) // All limit bits
-#define LIMIT_MASK ((1<<X_LIMIT_BIT)|(1<<Y_LIMIT_BIT)|(1<<Z_LIMIT_BIT)) // All limit bits
+
+#define LIMIT_MASK ((1<<X1_LIMIT_BIT)|(1<<X2_LIMIT_BIT)|(1<<Y1_LIMIT_BIT)|(1<<Y2_LIMIT_BIT)) // All limit bits
 #define STEP_MASK ((1<<X_STEP_BIT)|(1<<Y_STEP_BIT)|(1<<Z_STEP_BIT)) // All step bits
 #define DIRECTION_MASK ((1<<X_DIRECTION_BIT)|(1<<Y_DIRECTION_BIT)|(1<<Z_DIRECTION_BIT)) // All direction bits
 #define STEPPING_MASK (STEP_MASK | DIRECTION_MASK) // All stepping-related bits (step/direction)
@@ -39,14 +39,17 @@ void st_synchronize();
 // Execute the homing cycle
 void st_go_home();
              
-// Notify the stepper subsystem to start executing the g-code program in buffer.
-void st_cycle_start();
+// Start stepper interrupt and execute the blocks in queue.
+void st_wake_up();
 
 // make the stepper subsystem fall asleep
 void st_go_idle();
 
 // Get the actual position of the head in mm.
-// This is as acurate as an open loop system can be.
+// This is as accurate as an open loop system can be.
 void st_get_position( double *x, double *y, double *z);
+double st_get_position_x();
+double st_get_position_y();
+double st_get_position_z();
 
 #endif

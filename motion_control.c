@@ -33,11 +33,9 @@
 #include "laser_control.h"
 
 // Execute dwell in seconds. Maximum time delay is > 18 hours, more than enough for any application.
-void mc_dwell(double seconds) 
-{
+void mc_dwell(double seconds) {
    uint16_t i = floor(seconds);
    st_synchronize();
-   set_laser_intensity(LASER_OFF);
    _delay_ms(floor(1000*(seconds-i))); // Delay millisecond remainder
    while (i > 0) {
      _delay_ms(1000); // Delay one second
@@ -156,9 +154,5 @@ void mc_go_home() {
   st_go_home();
 }
 
-// void mc_emergency_stop() {
-//   st_go_idle();               // stop all motion immediately
-//   plan_reset_block_buffer();  // drop all queued commands
-// }
 
 

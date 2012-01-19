@@ -24,27 +24,39 @@
 #define config_h
 
 
-#define BAUD_RATE 57600
+#define BAUD_RATE 9600
 #define LASER_OFF 0
-  
-#define LIMIT_DDR          DDRC
-#define LIMIT_PORT         PORTC
-#define LIMIT_PIN          PINC
-#define X_LIMIT_BIT          0
-#define X2_LIMIT_BIT         1
-#define Y_LIMIT_BIT          2
-#define Y2_LIMIT_BIT         3
-#define DOOR_BIT             4
-#define Z_LIMIT_BIT          5
+    
+#define LIMIT_OVERWRITE_DDR     DDRD
+#define LIMIT_OVERWRITE_PORT    PORTD
+#define LIMIT_OVERWRITE_BIT     7
 
-#define STEPPING_DDR       DDRB
-#define STEPPING_PORT      PORTB
-#define X_STEP_BIT           0
-#define Y_STEP_BIT           1
-#define Z_STEP_BIT           2
-#define X_DIRECTION_BIT      3
-#define Y_DIRECTION_BIT      4
-#define Z_DIRECTION_BIT      5
+#define SENSE_DDR               DDRD
+#define SENSE_PORT              PORTD
+#define POWER_BIT               2
+#define CHILLER_BIT             3
+#define DOOR_BIT                5
+  
+#define LIMIT_DDR               DDRC
+#define LIMIT_PORT              PORTC  
+#define X1_LIMIT_BIT            0
+#define X2_LIMIT_BIT            1
+#define Y1_LIMIT_BIT            2
+#define Y2_LIMIT_BIT            3
+
+#define AIRGAS_DDR              DDRC
+#define AIRGAS_PORT             PORTC
+#define AIR_BIT                 4
+#define GAS_BIT                 5
+
+#define STEPPING_DDR            DDRB
+#define STEPPING_PORT           PORTB
+#define X_STEP_BIT              0
+#define Y_STEP_BIT              1
+#define Z_STEP_BIT              2
+#define X_DIRECTION_BIT         3
+#define Y_DIRECTION_BIT         4
+#define Z_DIRECTION_BIT         5
 
 // laser pwm pin is PD6 (hardware PWM for timer0)
 // no need to set the following

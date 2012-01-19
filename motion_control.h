@@ -24,6 +24,7 @@
 
 #include <avr/io.h>
 #include "planner.h"
+#include "stepper.h"
 #include "config.h"
 
 // NOTE: Although the following functions structurally belongs in this module, there is nothing to do but
@@ -34,7 +35,14 @@
 // (1 minute)/feed_rate time.
 #define mc_line(x, y, z, feed_rate, invert_feed_rate, nominal_laser_intensity) plan_buffer_line(x, y, z, feed_rate, invert_feed_rate, nominal_laser_intensity) 
 
+#define mc_get_actual_position(x, y, z) st_get_position(x, y, z)
 #define mc_set_current_position(x, y, z) plan_set_current_position(x, y, z) 
+#define mc_synchronize() st_synchronize() 
+
+#define mc_cancel() plan_buffer_command(TYPE_CANCEL)
+#define mc_airgas_disable() plan_buffer_command(TYPE_AIRGAS_DISABLE)
+#define mc_air_enable() plan_buffer_command(TYPE_AIR_ENABLE)
+#define mc_gas_enable() plan_buffer_command(TYPE_GAS_ENABLE)
 
 // Execute an arc in offset mode format. position == current xyz, target == target xyz, 
 // offset == offset from current xyz, axis_XXX defines circle plane in tool space, axis_linear is
@@ -49,8 +57,5 @@ void mc_dwell(double seconds);
 
 // Send the tool home (not implemented)
 void mc_go_home();
-
-// // stop all commands immediately
-// void mc_emergency_stop();
 
 #endif

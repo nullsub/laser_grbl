@@ -24,6 +24,7 @@
 #include <inttypes.h>
 #include <math.h>       
 #include <stdlib.h>
+#include <util/delay.h>
 
 #include "planner.h"
 #include "nuts_bolts.h"
@@ -309,11 +310,6 @@ void plan_discard_current_block() {
   }
 }
 
-void plan_reset_block_buffer() {
-  block_buffer_head = 0;
-  block_buffer_tail = 0;
-}
-
 block_t *plan_get_current_block() {
   if (block_buffer_head == block_buffer_tail) { return(NULL); }
   return(&block_buffer[block_buffer_tail]);
@@ -334,11 +330,16 @@ void plan_buffer_line(double x, double y, double z, double feed_rate, uint8_t in
   int next_buffer_head = next_block_index( block_buffer_head );	
   // If the buffer is full: good! That means we are well ahead of the robot. 
   // Rest here until there is room in the buffer.
-  while(block_buffer_tail == next_buffer_head) { sleep_mode(); }
+  while(block_buffer_tail == next_buffer_head) {
+    sleep_mode();
+  }
   
   // Prepare to set up new block
   block_t *block = &block_buffer[block_buffer_head];
   
+  // set block type to line command
+  block->type = TYPE_LINE;
+
   // set nominal laser intensity
   block->nominal_laser_intensity = nominal_laser_intensity;  
 
@@ -418,7 +419,7 @@ void plan_buffer_line(double x, double y, double z, double feed_rate, uint8_t in
                          - previous_unit_vec[Z_AXIS] * unit_vec[Z_AXIS] ;
                            
       // Skip and use default max junction speed for 0 degree acute junction.
-      if (cos_theta < 0.95) {
+       if (cos_theta < 0.95) {
         vmax_junction = min(previous_nominal_speed,block->nominal_speed);
         // Skip and avoid divide by zero for straight junctions at 180 degrees. Limit to min() of nominal speeds.
         if (cos_theta > -0.95) {
@@ -467,8 +468,49 @@ void plan_buffer_line(double x, double y, double z, double feed_rate, uint8_t in
 
   if (acceleration_manager_enabled) { planner_recalculate(); }  
 
-  st_cycle_start();
+  // make sure the stepper interrupt is processing
+  st_wake_up();
 }
+
+
+void plan_buffer_command(uint8_t type) {
+  if (type == TYPE_CANCEL) {
+    // discard all blocks in the buffer
+    // block_t *current_block = plan_get_current_block();
+    // current_block->accelerate_until = 0   // force deceleration
+    // current_block->decelerate_after = 0;  // force deceleration
+    // if (block_buffer_head > block_buffer_tail + 1) {
+    //   block_buffer_head = block_buffer_tail + 2;  // leave two blocks
+    // }
+    // if (acceleration_manager_enabled) { planner_recalculate(); } 
+    // st_synchronize(); //wait until this last block finishes    
+    st_go_idle();
+    block_buffer_tail = 0;
+    block_buffer_head = 0;
+    plan_set_current_position(st_get_position_x(), st_get_position_y(), st_get_position_z());
+  } else {
+    // Calculate the buffer head after we push this byte
+    int next_buffer_head = next_block_index( block_buffer_head );
+    // If the buffer is full: good! That means we are well ahead of the robot. 
+    // Rest here until there is room in the buffer.
+    while(block_buffer_tail == next_buffer_head) {
+      sleep_mode();
+    }
+    // Prepare to set up new block
+    block_t *block = &block_buffer[block_buffer_head];
+  
+    // set block type command
+    block->type = type;
+  
+    // Move buffer head
+    block_buffer_head = next_buffer_head;
+
+    // make sure the stepper interrupt is processing  
+    st_wake_up();
+  }
+}
+
+
 
 // Reset the planner position vector and planner speed
 void plan_set_current_position(double x, double y, double z) {
