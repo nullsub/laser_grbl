@@ -63,7 +63,6 @@ GUESS_PPREFIX = "tty.usbmodem"
 
 
 def build():
-    SERIAL_PORT = '/dev/tty.usbmodemfd121'
     DEVICE = "atmega328p"
     CLOCK = "16000000"
     PROGRAMMER = "avrisp"    # use this for bootloader
