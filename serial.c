@@ -26,8 +26,8 @@
 #include "serial.h"
 
 
-#define RX_BUFFER_SIZE 128
-#define TX_BUFFER_SIZE 32
+#define RX_BUFFER_SIZE 192
+#define TX_BUFFER_SIZE 16
 
 uint8_t rx_buffer[RX_BUFFER_SIZE];
 uint8_t rx_buffer_head = 0;
@@ -91,11 +91,11 @@ SIGNAL(USART_UDRE_vect) {
   uint8_t tail = tx_buffer_tail;
   
   if (xoff_flag) {
-    UDR0 = '<';  //send XOFF
+    UDR0 = '\x13';  //send XOFF
     xoff_flag = 0;
     xon_remote_state = 0;
   } else if (xon_flag) {
-    UDR0 = '>';  //send XON
+    UDR0 = '\x11';  //send XON
     xon_flag = 0;
     xon_remote_state = 1;
   } else {
