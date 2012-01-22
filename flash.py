@@ -92,7 +92,19 @@ def build():
     # fuse setting taken over from Makefile for reference
     #os.system('%(dude)s -U hfuse:w:0xd2:m -U lfuse:w:0xff:m' % {'dude':AVRDUDEAPP})
 
-
+    ## clean after upload
+    print "Cleaning up build files."
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    for fileobj in OBJECTS:
+        file_abs = os.path.join(current_dir, '%(file)s.o' % {'file':fileobj})
+        if os.path.isfile(file_abs):
+            os.remove(file_abs);
+    file_abs = os.path.join(current_dir, 'main.elf')
+    if os.path.isfile(file_abs):
+        os.remove(file_abs)
+    file_abs = os.path.join(current_dir, 'LasaurGrbl.hex')
+    if os.path.isfile(file_abs):
+        os.remove(file_abs)
 
 ## define serial port
 ##
