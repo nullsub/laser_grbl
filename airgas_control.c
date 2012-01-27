@@ -1,9 +1,9 @@
 /*
-  serial.c - Low level functions for sending and recieving bytes via the serial port
-  Part of Grbl
+  airgas_control.c - air and gas assist control
+  Part of LasaurGrbl
 
-  Copyright (c) 2009-2011 Simen Svale Skogsrud
-
+  Copyright (c) 2011 Stephan Hechenberger
+  
   Grbl is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
   the Free Software Foundation, either version 3 of the License, or
@@ -18,20 +18,29 @@
   along with Grbl.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-/* This code was initially inspired by the wiring_serial module by David A. Mellis which
-   used to be a part of the Arduino project. */ 
-
-#ifndef serial_h
-#define serial_h
-
-#define SERIAL_NO_DATA 0xff
-
-void serial_init(long baud);
-
-void serial_write(uint8_t data);
-
-uint8_t serial_read();
-uint8_t serial_available();
+#include "airgas_control.h"
+#include "settings.h"
+#include "config.h"
+#include <avr/io.h>
 
 
-#endif
+void airgas_init() {
+  AIRGAS_DDR |= (1 << AIR_BIT);  // set as output pin
+  AIRGAS_DDR |= (1 << GAS_BIT);  // set as output pin
+  airgas_disable();    
+}
+
+
+void airgas_disable() {
+  AIRGAS_PORT |= (1 << AIR_BIT);
+  AIRGAS_PORT |= (1 << GAS_BIT);
+}
+
+void air_enable() {
+  AIRGAS_PORT &= ~(1 << AIR_BIT);
+}
+
+void gas_enable() {
+  AIRGAS_PORT &= ~(1 << GAS_BIT);
+}
+

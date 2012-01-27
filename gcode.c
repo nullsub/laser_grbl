@@ -1,32 +1,40 @@
 /*
   gcode.c - rs274/ngc parser.
-  Part of LasaurGrbl
+  Part of Grbl
 
   Copyright (c) 2009-2011 Simen Svale Skogsrud
   Copyright (c) 2011 Stefan Hechenberger
   Copyright (c) 2011 Sungeun K. Jeon
   
-  Inspired by the Arduino GCode Interpreter by Mike Ellery and the 
-  NIST RS274/NGC Interpreter by Kramer, Proctor and Messina.
-  
-  LasaurGrbl is free software: you can redistribute it and/or modify
+  Grbl is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
   the Free Software Foundation, either version 3 of the License, or
   (at your option) any later version.
 
-  LasaurGrbl is distributed in the hope that it will be useful,
+  Grbl is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
   GNU General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with Grbl.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+/* This code is inspired by the Arduino GCode Interpreter by Mike Ellery and the NIST RS274/NGC Interpreter
+   by Kramer, Proctor and Messina. */
 
 #include "gcode.h"
-#include "config.h"
-#include "serial.h"
+#include <string.h>
+#include "nuts_bolts.h"
+#include <math.h>
+#include "settings.h"
 #include "motion_control.h"
-#include "more_control.h"
+#include "errno.h"
+#include "protocol.h"
+#include "config.h"
 #include "stepper.h"
+#include "airgas_control.h"
+
 
 #define MM_PER_INCH (25.4)
 
@@ -57,13 +65,17 @@
 
 typedef struct {
   uint8_t status_code;
-  uint8_t motion_mode;             // {G0, G1, G2, G3, G80}
-  uint8_t inches_mode;             // 0 = millimeter mode, 1 = inches mode {G20, G21}
-  uint8_t absolute_mode;           // 0 = relative motion, 1 = absolute motion {G90, G91}
+
+  uint8_t motion_mode;             /* {G0, G1, G2, G3, G80} */
+  uint8_t inverse_feed_rate_mode;  /* G93, G94 */
+  uint8_t inches_mode;             /* 0 = millimeter mode, 1 = inches mode {G20, G21} */
+  uint8_t absolute_mode;           /* 0 = relative motion, 1 = absolute motion {G90, G91} */
   uint8_t program_flow;
-  double feed_rate, seek_rate;      // Millimeters/second
-  double position[3];               // Where the interpreter considers the tool to be at this point in the code
-  int    nominal_laser_intensity;  // 0-255 percentage
+  // int8_t laser_enable;
+  double feed_rate, seek_rate;     /* Millimeters/second */
+  double position[3];              /* Where the interpreter considers the tool to be at this point in the code */
+  uint8_t tool;
+  int16_t nominal_laser_intensity;
   uint8_t plane_axis_0, 
           plane_axis_1, 
           plane_axis_2;            // The axes of the selected plane  
@@ -73,7 +85,6 @@ static parser_state_t gc;
 #define FAIL(status) gc.status_code = status;
 
 static int next_statement(char *letter, double *double_ptr, char *line, uint8_t *char_counter);
-static int read_double(char *line, uint8_t *char_counter, double *double_ptr);
 
 static void select_plane(uint8_t axis_0, uint8_t axis_1, uint8_t axis_2) 
 {
@@ -91,7 +102,7 @@ void gc_init() {
   gc.nominal_laser_intensity = LASER_OFF;
 }
 
-static double to_millimeters(double value) {
+static float to_millimeters(double value) {
   return(gc.inches_mode ? (value * MM_PER_INCH) : value);
 }
 
@@ -103,6 +114,7 @@ uint8_t gc_execute_line(char *line) {
   char letter;
   double value;
   double unit_converted_value;
+  double inverse_feed_rate = -1; // negative inverse_feed_rate means no inverse_feed_rate specified
   uint8_t radius_mode = false;
   
   uint8_t absolute_override = false;          /* 1 = absolute motion for this block only {G53} */
@@ -117,8 +129,7 @@ uint8_t gc_execute_line(char *line) {
   
   // Pass 1: Commands
   while(next_statement(&letter, &value, line, &char_counter)) {
-    //int_value = trunc(value);
-    int_value = value;
+    int_value = trunc(value);
     switch(letter) {
       case 'G':
       switch(int_value) {
@@ -138,6 +149,8 @@ uint8_t gc_execute_line(char *line) {
         case 90: gc.absolute_mode = true; break;
         case 91: gc.absolute_mode = false; break;
         case 92: next_action = NEXT_ACTION_SET_COORDINATE_OFFSET; break;        
+        case 93: gc.inverse_feed_rate_mode = true; break;
+        case 94: gc.inverse_feed_rate_mode = false; break;
         default: FAIL(STATUS_UNSUPPORTED_STATEMENT);
       }
       break;
@@ -156,6 +169,7 @@ uint8_t gc_execute_line(char *line) {
         default: FAIL(STATUS_UNSUPPORTED_STATEMENT);
       }            
       break;
+      case 'T': gc.tool = trunc(value); break;
     }
     if(gc.status_code) { break; }
   }
@@ -170,16 +184,19 @@ uint8_t gc_execute_line(char *line) {
 
   // Pass 2: Parameters
   while(next_statement(&letter, &value, line, &char_counter)) {
-    // int_value = trunc(value);
-    int_value = value;
+    int_value = trunc(value);
     unit_converted_value = to_millimeters(value);
     switch(letter) {
       case 'F': 
-      if (unit_converted_value <= 0) { FAIL(STATUS_BAD_NUMBER_FORMAT); } // Must be greater than zero   
-      if (gc.motion_mode == MOTION_MODE_SEEK) {
-        gc.seek_rate = unit_converted_value;
-      } else {
-        gc.feed_rate = unit_converted_value; // millimeters per minute
+      if (unit_converted_value <= 0) { FAIL(STATUS_BAD_NUMBER_FORMAT); } // Must be greater than zero
+      if (gc.inverse_feed_rate_mode) {
+        inverse_feed_rate = unit_converted_value; // seconds per motion for this motion only
+      } else {          
+        if (gc.motion_mode == MOTION_MODE_SEEK || gc.motion_mode == MOTION_MODE_CANCEL) {
+          gc.seek_rate = unit_converted_value;
+        } else {
+          gc.feed_rate = unit_converted_value; // millimeters per minute
+        }
       }
       break;
       case 'I': case 'J': case 'K': offset[letter-'I'] = unit_converted_value; break;
@@ -209,17 +226,9 @@ uint8_t gc_execute_line(char *line) {
     case NEXT_ACTION_CANCEL:
     // cancel any planned blocks
     // this effectively resets the block buffer of the planer
-    // but also causes the issue to void the projected any prospected positions
     mc_cancel();
-    // wait for any current blocks to finish
-    // after this the stepper processing goes idle
-    //mc_synchronize();
-    // get the actual position from the stepper processor 
-    // and fix various projected positions
-    mc_get_actual_position(&gc.position[X_AXIS], &gc.position[Y_AXIS], &gc.position[Z_AXIS]);    
-    mc_set_current_position(gc.position[X_AXIS], gc.position[Y_AXIS], gc.position[Z_AXIS]);
-    // move to the requested location
-    mc_line(target[X_AXIS], target[Y_AXIS], target[Z_AXIS], gc.seek_rate, LASER_OFF);
+    mc_get_actual_position(&gc.position[X_AXIS], &gc.position[Y_AXIS], &gc.position[Z_AXIS]);
+    mc_line(target[X_AXIS], target[Y_AXIS], target[Z_AXIS], gc.seek_rate, false, LASER_OFF);
     break;
     case NEXT_ACTION_AIRGAS_DISABLE:
     mc_airgas_disable();
@@ -234,10 +243,12 @@ uint8_t gc_execute_line(char *line) {
     switch (gc.motion_mode) {
       case MOTION_MODE_CANCEL: break;
       case MOTION_MODE_SEEK:
-      mc_line(target[X_AXIS], target[Y_AXIS], target[Z_AXIS], gc.seek_rate, LASER_OFF);
+      mc_line(target[X_AXIS], target[Y_AXIS], target[Z_AXIS], gc.seek_rate, false, LASER_OFF);
       break;
       case MOTION_MODE_LINEAR:
-      mc_line(target[X_AXIS], target[Y_AXIS], target[Z_AXIS], gc.feed_rate, gc.nominal_laser_intensity);
+      mc_line(target[X_AXIS], target[Y_AXIS], target[Z_AXIS], 
+        (gc.inverse_feed_rate_mode) ? inverse_feed_rate : gc.feed_rate, gc.inverse_feed_rate_mode,
+        gc.nominal_laser_intensity);
       break;
       case MOTION_MODE_CW_ARC: case MOTION_MODE_CCW_ARC:
       if (radius_mode) {
@@ -343,8 +354,9 @@ uint8_t gc_execute_line(char *line) {
       if (gc.motion_mode == MOTION_MODE_CW_ARC) { isclockwise = true; }
 
       // Trace the arc
-      mc_arc( gc.position, target, offset, gc.plane_axis_0, gc.plane_axis_1, gc.plane_axis_2,
-              gc.feed_rate, r, isclockwise, gc.nominal_laser_intensity );
+      mc_arc(gc.position, target, offset, gc.plane_axis_0, gc.plane_axis_1, gc.plane_axis_2,
+        (gc.inverse_feed_rate_mode) ? inverse_feed_rate : gc.feed_rate, gc.inverse_feed_rate_mode,
+        r, isclockwise, gc.nominal_laser_intensity);
         
       break;
     }    
@@ -356,7 +368,6 @@ uint8_t gc_execute_line(char *line) {
   memcpy(gc.position, target, sizeof(double)*3); // gc.position[] = target[];
   return(gc.status_code);
 }
-
 
 // Parses the next statement and leaves the counter on the first character following
 // the statement. Returns 1 if there was a statements, 0 if end of string was reached
@@ -377,23 +388,6 @@ static int next_statement(char *letter, double *double_ptr, char *line, uint8_t 
     return(0);
   };
   return(1);
-}
-
-
-// Read a floating point value from a string. Line points to the input buffer, char_counter 
-// is the indexer pointing to the current character of the line, while double_ptr is 
-// a pointer to the result variable. Returns true when it succeeds
-static int read_double(char *line, uint8_t *char_counter, double *double_ptr) {
-  char *start = line + *char_counter;
-  char *end;
-  
-  *double_ptr = strtod(start, &end);
-  if(end == start) { 
-    return(false); 
-  };
-
-  *char_counter = end - line;
-  return(true);
 }
 
 /* 

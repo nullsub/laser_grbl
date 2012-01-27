@@ -1,37 +1,44 @@
 /*
-  motion_control.h - high level interface for issuing motion commands
-  Part of LasaurGrbl
+  motion_control.c - high level interface for issuing motion commands
+  Part of Grbl
 
   Copyright (c) 2009-2011 Simen Svale Skogsrud
   Copyright (c) 2011 Sungeun K. Jeon
-  Copyright (c) 2011 Stefan Hechenberger
+  Copyright (c) 2011 Stefan hechenberger  
   
-  LasaurGrbl is free software: you can redistribute it and/or modify
+  Grbl is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
   the Free Software Foundation, either version 3 of the License, or
   (at your option) any later version.
 
-  LasaurGrbl is distributed in the hope that it will be useful,
+  Grbl is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
   GNU General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with Grbl.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include <avr/io.h>
+#include "settings.h"
+#include "config.h"
 #include "motion_control.h"
-#include "more_control.h"
-
-#ifndef M_PI
-  #define M_PI 3.14159265358979323846
-#endif
+#include <util/delay.h>
+#include <math.h>
+#include <stdlib.h>
+#include "nuts_bolts.h"
+#include "stepper.h"
+#include "planner.h"
+#include "laser_control.h"
 
 // Execute dwell in seconds. Maximum time delay is > 18 hours, more than enough for any application.
-void mc_dwell(double seconds) 
-{
+void mc_dwell(double seconds) {
    uint16_t i = floor(seconds);
    st_synchronize();
-   wait_ms(floor(1000*(seconds-i))); // Delay millisecond remainder
+   _delay_ms(floor(1000*(seconds-i))); // Delay millisecond remainder
    while (i > 0) {
-     wait_ms(1000); // Delay one second
+     _delay_ms(1000); // Delay one second
      i--;
    }
 }
@@ -39,9 +46,9 @@ void mc_dwell(double seconds)
 
 // The arc is approximated by generating a huge number of tiny, linear segments. The length of each 
 // segment is configured in settings.mm_per_arc_segment.  
-void mc_arc( double *position, double *target, double *offset, uint8_t axis_0, uint8_t axis_1, 
-             uint8_t axis_linear, double feed_rate, double radius, uint8_t isclockwise,
-             int nominal_laser_intensity )
+void mc_arc(double *position, double *target, double *offset, uint8_t axis_0, uint8_t axis_1, 
+  uint8_t axis_linear, double feed_rate, uint8_t invert_feed_rate, double radius, uint8_t isclockwise,
+  int nominal_laser_intensity)
 {      
 //   int acceleration_manager_was_enabled = plan_is_acceleration_manager_enabled();
 //   plan_set_acceleration_manager_enabled(false); // disable acceleration management for the duration of the arc
@@ -62,6 +69,10 @@ void mc_arc( double *position, double *target, double *offset, uint8_t axis_0, u
   double millimeters_of_travel = hypot(angular_travel*radius, fabs(linear_travel));
   if (millimeters_of_travel == 0.0) { return; }
   uint16_t segments = floor(millimeters_of_travel/settings.mm_per_arc_segment);
+  // Multiply inverse feed_rate to compensate for the fact that this movement is approximated
+  // by a number of discrete segments. The inverse feed_rate should be correct for the sum of 
+  // all segments.
+  if (invert_feed_rate) { feed_rate *= segments; }
  
   double theta_per_segment = angular_travel/segments;
   double linear_per_segment = linear_travel/segments;
@@ -127,13 +138,13 @@ void mc_arc( double *position, double *target, double *offset, uint8_t axis_0, u
     arc_target[axis_0] = center_axis0 + r_axis0;
     arc_target[axis_1] = center_axis1 + r_axis1;
     arc_target[axis_linear] += linear_per_segment;
-    plan_buffer_line( arc_target[X_AXIS], arc_target[Y_AXIS], arc_target[Z_AXIS], 
-                      feed_rate, nominal_laser_intensity );
+    plan_buffer_line(arc_target[X_AXIS], arc_target[Y_AXIS], arc_target[Z_AXIS], 
+                     feed_rate, invert_feed_rate, nominal_laser_intensity);
     
   }
   // Ensure last segment arrives at target location.
-  plan_buffer_line( target[X_AXIS], target[Y_AXIS], target[Z_AXIS], 
-                    feed_rate, nominal_laser_intensity );
+  plan_buffer_line(target[X_AXIS], target[Y_AXIS], target[Z_AXIS], 
+                   feed_rate, invert_feed_rate, nominal_laser_intensity);
 
 //   plan_set_acceleration_manager_enabled(acceleration_manager_was_enabled);
 }

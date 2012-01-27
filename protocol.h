@@ -1,5 +1,5 @@
 /*
-  serial.c - Low level functions for sending and recieving bytes via the serial port
+  protocol.h - the serial protocol master control unit
   Part of Grbl
 
   Copyright (c) 2009-2011 Simen Svale Skogsrud
@@ -17,21 +17,23 @@
   You should have received a copy of the GNU General Public License
   along with Grbl.  If not, see <http://www.gnu.org/licenses/>.
 */
+#ifndef protocol_h
+#define protocol_h
 
-/* This code was initially inspired by the wiring_serial module by David A. Mellis which
-   used to be a part of the Arduino project. */ 
+#define STATUS_OK 0
+#define STATUS_BAD_NUMBER_FORMAT 1
+#define STATUS_EXPECTED_COMMAND_LETTER 2
+#define STATUS_UNSUPPORTED_STATEMENT 3
+#define STATUS_FLOATING_POINT_ERROR 4
 
-#ifndef serial_h
-#define serial_h
+// Initialize the serial protocol
+void protocol_init();
 
-#define SERIAL_NO_DATA 0xff
+// Read command lines from the serial port and execute them as they
+// come in. Blocks until the serial buffer is emptied. 
+void protocol_process();
 
-void serial_init(long baud);
-
-void serial_write(uint8_t data);
-
-uint8_t serial_read();
-uint8_t serial_available();
-
+// Executes one line of input according to protocol
+uint8_t protocol_execute_line(char *line);
 
 #endif

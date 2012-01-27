@@ -1,5 +1,5 @@
 /*
-  serial.c - Low level functions for sending and recieving bytes via the serial port
+  print.h - Functions for formatting output strings
   Part of Grbl
 
   Copyright (c) 2009-2011 Simen Svale Skogsrud
@@ -21,17 +21,17 @@
 /* This code was initially inspired by the wiring_serial module by David A. Mellis which
    used to be a part of the Arduino project. */ 
 
-#ifndef serial_h
-#define serial_h
+#ifndef print_h
+#define print_h
 
-#define SERIAL_NO_DATA 0xff
+void printString(const char *s);
 
-void serial_init(long baud);
+void printPgmString(const char *s);
 
-void serial_write(uint8_t data);
+void printInteger(long n);
 
-uint8_t serial_read();
-uint8_t serial_available();
+void printIntegerInBase(unsigned long n, unsigned long base);
 
+void printFloat(double n);
 
 #endif
