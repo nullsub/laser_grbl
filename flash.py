@@ -94,7 +94,9 @@ def build():
 
     ## clean after upload
     print "Cleaning up build files."
-    current_dir = os.path.dirname(os.path.abspath(__file__))
+    # current_dir = os.path.dirname(os.path.abspath(__file__))
+    # current_dir = os.path.dirname(inspect.getfile(inspect.currentframe()))
+    current_dir = sys.argv[0]  # we want the dir this script is running from because this is where the build files will be placed.
     for fileobj in OBJECTS:
         file_abs = os.path.join(current_dir, '%(file)s.o' % {'file':fileobj})
         if os.path.isfile(file_abs):
