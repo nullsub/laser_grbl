@@ -24,7 +24,6 @@
 
 #include "stepper.h"
 #include "config.h"
-#include "settings.h"
 #include <math.h>
 #include <stdlib.h>
 #include <util/delay.h>

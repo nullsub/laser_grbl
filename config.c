@@ -1,5 +1,5 @@
 /*
-config.c - compile-time configuration and dynamic settings
+config.c - compile-time configuration and settings
 Part of LasaurGrbl
 
 Copyright (c) 2009-2011 Simen Svale Skogsrud

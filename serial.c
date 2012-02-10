@@ -27,7 +27,7 @@
 
 
 #define RX_BUFFER_SIZE 192
-#define TX_BUFFER_SIZE 16
+#define TX_BUFFER_SIZE 32
 
 uint8_t rx_buffer[RX_BUFFER_SIZE];
 uint8_t rx_buffer_head = 0;
@@ -67,6 +67,9 @@ void serial_init(long baud) {
 	// send a XON to indicate device is ready to receive
 	xon_flag = 1;
 	UCSR0B |=  (1 << UDRIE0);  // enable tx interrupt
+	
+  printPgmString(PSTR("\r\nLasaurGrbl " GRBL_VERSION));
+  printPgmString(PSTR("\r\n")); 	
 }
 
 void serial_write(uint8_t data) {

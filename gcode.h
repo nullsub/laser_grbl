@@ -23,8 +23,12 @@
 #define gcode_h
 #include <avr/io.h>
 
+
 // Initialize the parser
 void gc_init();
+
+// read chars from serial
+void gc_process_line();
 
 // Execute one block of rs275/ngc/g-code
 uint8_t gc_execute_line(char *line);

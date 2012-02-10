@@ -21,7 +21,6 @@
 #include <util/delay.h>
 #include <avr/io.h>
 #include "stepper.h"
-#include "settings.h"
 #include "nuts_bolts.h"
 #include "config.h"
 #include "limits.h"

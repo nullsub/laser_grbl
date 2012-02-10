@@ -28,10 +28,7 @@
 #include "more_control.h"
 #include "motion_control.h"
 #include "gcode.h"
-#include "protocol.h"
 #include "limits.h"
-
-#include "settings.h"
 #include "serial.h"
 
 
@@ -48,6 +45,6 @@ int main() {
                     
   while(true) {
     sleep_mode();
-    gcode_process_line();
+    gc_process_line();
   }
 }

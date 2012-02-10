@@ -22,3 +22,5 @@ mbed merger notes
 - laser intensity, 255 or 1.0
 - trunc() function in gcode parser
 - NEXT_ACTION_CANCEL, newer code
+
+TODO: motion_control, planner, stepper

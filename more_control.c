@@ -20,7 +20,6 @@
 
 #include "more_control.h"
 
-#include "settings.h"
 #include "stepper.h"
 #include "config.h"
 #include <avr/io.h>
