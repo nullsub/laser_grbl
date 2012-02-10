@@ -30,7 +30,7 @@
 #include "nuts_bolts.h"
 #include "stepper.h"
 #include "planner.h"
-#include "laser_control.h"
+#include "more_control.h"
 
 // Execute dwell in seconds. Maximum time delay is > 18 hours, more than enough for any application.
 void mc_dwell(double seconds) {

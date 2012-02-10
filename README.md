@@ -15,3 +15,10 @@ Grbl - An embedded g-code interpreter and motion-controller for the Arduino/AVR3
 --------------
 
 For more information [on Grbl](https://github.com/simen/grbl)
+
+
+mbed merger notes
+------------------
+- laser intensity, 255 or 1.0
+- trunc() function in gcode parser
+- NEXT_ACTION_CANCEL, newer code

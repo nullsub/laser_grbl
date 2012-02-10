@@ -32,8 +32,7 @@
 #include <avr/interrupt.h>
 #include "planner.h"
 #include "limits.h"
-#include "laser_control.h"
-#include "airgas_control.h"
+#include "more_control.h"
 
 // Some useful constants
 #define STEP_MASK ((1<<X_STEP_BIT)|(1<<Y_STEP_BIT)|(1<<Z_STEP_BIT)) // All step bits

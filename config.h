@@ -60,6 +60,44 @@
 #define Z_DIRECTION_BIT         5
 
 
+
+#define LIMIT_MASK ((1<<X1_LIMIT_BIT)|(1<<X2_LIMIT_BIT)|(1<<Y1_LIMIT_BIT)|(1<<Y2_LIMIT_BIT)) // All limit bits
+#define STEP_MASK ((1<<X_STEP_BIT)|(1<<Y_STEP_BIT)|(1<<Z_STEP_BIT)) // All step bits
+#define DIRECTION_MASK ((1<<X_DIRECTION_BIT)|(1<<Y_DIRECTION_BIT)|(1<<Z_DIRECTION_BIT)) // All direction bits
+
+
+// bit math
+// see: http://www.arduino.cc/playground/Code/BitMath
+// see: http://graphics.stanford.edu/~seander/bithacks.html
+//
+// y = (x >> n) & 1; // n=0..15. stores nth bit of x in y. y becomes 0 or 1.
+//
+// x &= ~(1 << n); // forces nth bit of x to be 0. all other bits left alone.
+//
+// x &= (1<<(n+1))-1; // leaves alone the lowest n bits of x; all higher bits set to 0.
+//
+// x |= (1 << n); // forces nth bit of x to be 1. all other bits left alone.
+//
+// x ^= (1 << n); // toggles nth bit of x. all other bits left alone.
+//
+// x = ~x; // toggles ALL the bits in x.
+
+
+#define MICROSTEPS 10
+#define DEFAULT_X_STEPS_PER_MM 32.80839895 //microsteps/mm
+#define DEFAULT_Y_STEPS_PER_MM 32.80839895 //microsteps/mm
+#define DEFAULT_Z_STEPS_PER_MM 32.80839895 //microsteps/mm
+#define DEFAULT_STEP_PULSE_MICROSECONDS 5
+#define DEFAULT_MM_PER_ARC_SEGMENT 0.1
+#define DEFAULT_RAPID_FEEDRATE 20000.0 // in millimeters per minute
+#define DEFAULT_FEEDRATE 5000.0
+#define DEFAULT_ACCELERATION 500.0 // mm/sec^2
+#define DEFAULT_JUNCTION_DEVIATION 0.1 // mm
+
+
+#define LASAURGRBL_VERSION "v12.03"
+
+
 // This parameter sets the delay time before disabling the steppers after the final block of movement.
 // A short delay ensures the steppers come to a complete stop and the residual inertial force in the 
 // CNC axes don't cause the axes to drift off position. This is particularly important when manually 
@@ -97,6 +135,38 @@
 // of grbl, and should be on the order or greater than the size of the buffer to help with the 
 // computational efficiency of generating arcs.
 #define N_ARC_CORRECTION 25 // Integer (1-255)
+
+
+
+typedef struct {
+    double steps_per_mm[3];
+    uint32_t microsteps;
+    uint32_t pulse_microseconds;
+    double default_feed_rate;
+    double default_seek_rate;
+    double mm_per_arc_segment;
+    double acceleration;
+    double junction_deviation;
+    uint32_t invert_mask;
+} settings_t;
+extern settings_t settings;
+
+
+void settings_init();
+
+
+#define false 0
+#define true 1
+
+#define X_AXIS 0
+#define Y_AXIS 1
+#define Z_AXIS 2
+
+#define clear_vector(a) memset(a, 0, sizeof(a))
+#define clear_vector_double(a) memset(a, 0.0, sizeof(a))
+#define max(a,b) (((a) > (b)) ? (a) : (b))
+#define min(a,b) (((a) < (b)) ? (a) : (b))
+
 
 #endif
 

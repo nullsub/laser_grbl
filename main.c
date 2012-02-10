@@ -25,8 +25,7 @@
 #include "config.h"
 #include "planner.h"
 #include "stepper.h"
-#include "laser_control.h"
-#include "airgas_control.h"
+#include "more_control.h"
 #include "motion_control.h"
 #include "gcode.h"
 #include "protocol.h"
@@ -35,12 +34,10 @@
 #include "settings.h"
 #include "serial.h"
 
-int main(void)
-{
+
+int main() {
   sei();
-  
-  serial_init(BAUD_RATE);
-  protocol_init();        
+  serial_init();
   settings_init();  
   plan_init();      
   st_init();
@@ -49,9 +46,8 @@ int main(void)
   gc_init();
   limits_init();
                     
-  for(;;){
-    sleep_mode(); // Wait for it ...
-    protocol_process(); // ... process the serial protocol
+  while(true) {
+    sleep_mode();
+    gcode_process_line();
   }
-  return 0;   /* never reached */
 }
