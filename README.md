@@ -19,6 +19,11 @@ For more information [on Grbl](https://github.com/simen/grbl)
 
 mbed merger notes
 ------------------
+- removed
+  - inverse mode
+  - plane selection, G17, G18, G19
+  - arc support, G2, G3
+
 - laser intensity, 255 or 1.0
 - trunc() function in gcode parser
 - NEXT_ACTION_CANCEL, newer code

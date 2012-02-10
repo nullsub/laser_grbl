@@ -23,9 +23,11 @@
 #define motion_control_h
 
 #include <avr/io.h>
+
+#include "config.h"
 #include "planner.h"
 #include "stepper.h"
-#include "config.h"
+
 
 // NOTE: Although the following functions structurally belongs in this module, there is nothing to do but
 // to forward the request to the planner.
@@ -43,19 +45,23 @@
 #define mc_airgas_disable() plan_buffer_command(TYPE_AIRGAS_DISABLE)
 #define mc_air_enable() plan_buffer_command(TYPE_AIR_ENABLE)
 #define mc_gas_enable() plan_buffer_command(TYPE_GAS_ENABLE)
-
-// Execute an arc in offset mode format. position == current xyz, target == target xyz, 
-// offset == offset from current xyz, axis_XXX defines circle plane in tool space, axis_linear is
-// the direction of helical travel, radius == circle radius, isclockwise boolean. Used
-// for vector transformation direction.
-void mc_arc(double *position, double *target, double *offset, uint8_t axis_0, uint8_t axis_1,
-  uint8_t axis_linear, double feed_rate, uint8_t invert_feed_rate, double radius, uint8_t isclockwise,
-  int nominal_laser_intensity);
   
 // Dwell for a specific number of seconds
 void mc_dwell(double seconds);
 
 // Send the tool home (not implemented)
 void mc_go_home();
+
+
+void laser_init();
+void set_laser_intensity(uint8_t intensity);  //0-255
+void set_laser_intensity(float intensity);    //0.0-1.0 percentage
+
+
+void airgas_init();
+void airgas_disable();
+void air_enable();
+void gas_enable();
+
 
 #endif

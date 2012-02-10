@@ -25,11 +25,9 @@
 #include <math.h>       
 #include <stdlib.h>
 #include <util/delay.h>
-
-#include "planner.h"
-#include "nuts_bolts.h"
-#include "stepper.h"
 #include "config.h"
+#include "planner.h"
+#include "stepper.h"
 
 // The number of linear motions that can be in the plan at any give time
 #define BLOCK_BUFFER_SIZE 18

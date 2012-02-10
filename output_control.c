@@ -1,8 +1,10 @@
 /*
-  laser_control.c - laser control methods
-  Part of LasaurGrbl
+  motion_control.c - high level interface for issuing motion commands
+  Part of Grbl
 
-  Copyright (c) 2011 Stephan Hechenberger
+  Copyright (c) 2009-2011 Simen Svale Skogsrud
+  Copyright (c) 2011 Sungeun K. Jeon
+  Copyright (c) 2011 Stefan hechenberger  
   
   Grbl is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -18,11 +20,35 @@
   along with Grbl.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "more_control.h"
-
-#include "stepper.h"
-#include "config.h"
 #include <avr/io.h>
+#include <util/delay.h>
+#include <math.h>
+#include <stdlib.h>
+#include "config.h"
+#include "input_control.h"
+#include "output_control.h"
+#include "stepper.h"
+#include "planner.h"
+
+// Execute dwell in seconds. Maximum time delay is > 18 hours, more than enough for any application.
+void mc_dwell(double seconds) {
+   uint16_t i = floor(seconds);
+   st_synchronize();
+   _delay_ms(floor(1000*(seconds-i))); // Delay millisecond remainder
+   while (i > 0) {
+     _delay_ms(1000); // Delay one second
+     i--;
+   }
+}
+
+
+
+void mc_go_home() {
+  st_go_home();
+}
+
+
+
 
 
 void laser_init() {
@@ -79,3 +105,5 @@ void air_enable() {
 void gas_enable() {
   AIRGAS_PORT &= ~(1 << GAS_BIT);
 }
+
+

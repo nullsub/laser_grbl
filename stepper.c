@@ -22,16 +22,15 @@
 /* The timer calculations of this module informed by the 'RepRap cartesian firmware' by Zack Smith
    and Philipp Tiefenbacher. */
 
-#include "stepper.h"
-#include "config.h"
 #include <math.h>
 #include <stdlib.h>
 #include <util/delay.h>
-#include "nuts_bolts.h"
 #include <avr/interrupt.h>
+#include "config.h"
 #include "planner.h"
-#include "limits.h"
-#include "more_control.h"
+#include "stepper.h"
+#include "input_control.h"
+#include "output_control.h"
 
 // Some useful constants
 #define STEP_MASK ((1<<X_STEP_BIT)|(1<<Y_STEP_BIT)|(1<<Z_STEP_BIT)) // All step bits

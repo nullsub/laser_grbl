@@ -20,10 +20,11 @@
   
 #include <util/delay.h>
 #include <avr/io.h>
-#include "stepper.h"
-#include "nuts_bolts.h"
+
 #include "config.h"
-#include "limits.h"
+#include "stepper.h"
+#include "input_control.h"
+
 
 void limit_overwrite_disable();
 

@@ -25,10 +25,9 @@
 #include "config.h"
 #include "planner.h"
 #include "stepper.h"
-#include "more_control.h"
-#include "motion_control.h"
+#include "input_control.h"
+#include "output_control.h"
 #include "gcode.h"
-#include "limits.h"
 #include "serial.h"
 
 

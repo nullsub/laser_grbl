@@ -23,6 +23,8 @@
 
 #include <avr/interrupt.h>
 #include <avr/sleep.h>
+#include <math.h>
+#include <avr/pgmspace.h>
 #include "serial.h"
 
 
@@ -160,3 +162,74 @@ SIGNAL(USART_RX_vect) {
     
 	}
 }
+
+
+
+
+
+#ifndef DECIMAL_PLACES
+#define DECIMAL_PLACES 3
+#endif
+
+void printString(const char *s) {
+  while (*s) {
+    serial_write(*s++);
+  }
+}
+
+// Print a string stored in PGM-memory
+void printPgmString(const char *s) {
+  char c;
+  while ((c = pgm_read_byte_near(s++))) {
+    serial_write(c);
+  }
+}
+
+void printIntegerInBase(unsigned long n, unsigned long base) {
+  unsigned char buf[8 * sizeof(long)]; // Assumes 8-bit chars.
+  unsigned long i = 0;
+
+  if (n == 0) {
+    serial_write('0');
+    return;
+  }
+
+  while (n > 0) {
+    buf[i++] = n % base;
+    n /= base;
+  }
+
+  for (; i > 0; i--) {
+    serial_write(buf[i - 1] < 10 ?
+    '0' + buf[i - 1] :
+    'A' + buf[i - 1] - 10);
+  }
+}
+
+void printInteger(long n) {
+  if (n < 0) {
+    serial_write('-');
+    n = -n;
+  }
+
+  printIntegerInBase(n, 10);
+}
+
+// A very simple
+void printFloat(double n)
+{
+  double integer_part, fractional_part;
+  uint8_t decimal_part;
+  fractional_part = modf(n, &integer_part);
+  printInteger(integer_part);
+  serial_write('.');
+  fractional_part *= 10;
+  int decimals = DECIMAL_PLACES;
+  while(decimals-- > 0) {
+    decimal_part = floor(fractional_part);
+    serial_write('0'+decimal_part);
+    fractional_part -= decimal_part;
+    fractional_part *= 10;
+  }
+}
+
