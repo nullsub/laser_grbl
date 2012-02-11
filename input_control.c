@@ -108,7 +108,7 @@ static void leave_limit_switch(bool x, bool y, bool z) {
   homing_cycle(x, y, z, true, 100000);
 }
 
-void limits_go_home() {
+void limits_homing_cycle() {
   st_synchronize();
   // home the x and y axis
   approach_limit_switch(true, true, false);

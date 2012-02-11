@@ -43,12 +43,6 @@ void mc_dwell(double seconds) {
 
 
 
-void mc_go_home() {
-  st_go_home();
-}
-
-
-
 
 
 void laser_init() {

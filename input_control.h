@@ -25,7 +25,7 @@ along with Grbl. If not, see <http://www.gnu.org/licenses/>.
 void limits_init();
 
 // perform the homing cycle
-void limits_go_home();
+void limits_homing_cycle();
 
 // dis/enable if controller can still 
 // move while a limit switch is triggering

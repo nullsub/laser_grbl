@@ -33,7 +33,7 @@ GNU General Public License for more details.
 
 #define NEXT_ACTION_DEFAULT 0
 #define NEXT_ACTION_DWELL 1
-#define NEXT_ACTION_GO_HOME 2
+#define NEXT_ACTION_HOMING_CYCLE 2
 #define NEXT_ACTION_SET_COORDINATE_OFFSET 3
 #define NEXT_ACTION_CANCEL 4
 #define NEXT_ACTION_AIRGAS_DISABLE 5
@@ -192,7 +192,7 @@ uint8_t gc_execute_line(char *line) {
         case 4: next_action = NEXT_ACTION_DWELL; break;
         case 20: gc.inches_mode = true; break;
         case 21: gc.inches_mode = false; break;
-        case 28: case 30: next_action = NEXT_ACTION_GO_HOME; break;
+        case 30: next_action = NEXT_ACTION_HOMING_CYCLE; break;
         case 53: absolute_override = true; break;
         case 80: gc.motion_mode = MOTION_MODE_CANCEL; break;        
         case 90: gc.absolute_mode = true; break;
@@ -256,7 +256,7 @@ uint8_t gc_execute_line(char *line) {
       
   // Perform any physical actions
   switch (next_action) {
-    case NEXT_ACTION_GO_HOME: mc_go_home(); clear_vector(target); break;
+    case NEXT_ACTION_HOMING_CYCLE: mc_homing_cycle(); clear_vector(target); break;
     case NEXT_ACTION_DWELL: mc_dwell(p); break;   
     case NEXT_ACTION_SET_COORDINATE_OFFSET: 
     mc_set_current_position(target[X_AXIS], target[Y_AXIS], target[Z_AXIS]);

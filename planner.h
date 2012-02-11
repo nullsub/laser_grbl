@@ -22,7 +22,6 @@
 #ifndef planner_h
 #define planner_h
                  
-#include <inttypes.h>
 #include "config.h"
 
 
@@ -46,27 +45,26 @@ typedef struct {
   // Fields used by the motion planner to manage acceleration
   double nominal_speed;               // The nominal speed for this block in mm/min  
   double entry_speed;                 // Entry speed at previous-current junction in mm/min
-  double max_entry_speed;             // Maximum allowable junction entry speed in mm/min
+  double vmax_junction;               // max junction speed (mm/min) based on angle between segments, accel and deviation settings
   double millimeters;                 // The total travel of this block in mm
-  uint8_t  nominal_laser_intensity;
-  uint8_t recalculate_flag;           // Planner flag to recalculate trapezoids on entry junction
-  uint8_t nominal_length_flag;        // Planner flag for nominal speed always reached
+  uint8_t nominal_laser_intensity;    // 0-255 is 0-100% percentage
+  bool recalculate_flag;              // Planner flag to recalculate trapezoids on entry junction
+  bool nominal_length_flag;           // Planner flag for nominal speed always reached
   // Settings for the trapezoid generator
   uint32_t initial_rate;              // The jerk-adjusted step rate at start of block  
   uint32_t final_rate;                // The minimal rate at exit
   int32_t rate_delta;                 // The steps/minute to add or subtract when changing speed (must be positive)
   uint32_t accelerate_until;          // The index of the step event on which to stop acceleration
   uint32_t decelerate_after;          // The index of the step event on which to start decelerating
-  
+
 } block_t;
       
 // Initialize the motion plan subsystem      
 void plan_init();
 
-// Add a new linear movement to the buffer. x, y and z is the signed, absolute target position in 
-// millimaters. Feed rate specifies the speed of the motion. If feed rate is inverted, the feed
-// rate is taken to mean "frequency" and would complete the operation in 1/feed_rate minutes.
-void plan_buffer_line(double x, double y, double z, double feed_rate, uint8_t invert_feed_rate, int nominal_laser_intensity);
+// Add a new linear movement to the buffer. x, y and z is 
+// the signed, absolute target position in millimaters. Feed rate specifies the speed of the motion.
+void plan_buffer_line(double x, double y, double z, double feed_rate, int nominal_laser_intensity);
 
 // Add a non-motion command to the queue.
 // Typical types are: TYPE_CANCEL, TYPE_AIRGAS_DISABLE, TYPE_AIR_ENABLE, TYPE_GAS_ENABLE
@@ -79,11 +77,10 @@ void plan_discard_current_block();
 // Gets the current block. Returns NULL if buffer empty
 block_t *plan_get_current_block();
 
-// Enables or disables acceleration-management for upcoming blocks
-void plan_set_acceleration_manager_enabled(uint8_t enabled);
+// purge all command in the buffer
+void plan_reset_block_buffer();
 
-// Is acceleration-management currently enabled?
-int plan_is_acceleration_manager_enabled();
+bool plan_blocks_available();
 
 // Reset the position vector
 void plan_set_current_position(double x, double y, double z); 

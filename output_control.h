@@ -29,34 +29,22 @@
 #include "stepper.h"
 
 
-// NOTE: Although the following functions structurally belongs in this module, there is nothing to do but
-// to forward the request to the planner.
-
-// Execute linear motion in absolute millimeter coordinates. Feed rate given in millimeters/second
-// unless invert_feed_rate is true. Then the feed_rate means that the motion should be completed in
-// (1 minute)/feed_rate time.
-#define mc_line(x, y, z, feed_rate, invert_feed_rate, nominal_laser_intensity) plan_buffer_line(x, y, z, feed_rate, invert_feed_rate, nominal_laser_intensity) 
+// Schedule Linear motion, absolute coordinates,  feed rate is millimeters/second.
+#define mc_line(x, y, z, feed_rate, nominal_laser_intensity) plan_buffer_line(x, y, z, feed_rate, nominal_laser_intensity) 
 
 #define mc_get_actual_position(x, y, z) st_get_position(x, y, z)
 #define mc_set_current_position(x, y, z) plan_set_current_position(x, y, z) 
 #define mc_synchronize() st_synchronize() 
 
+#define mc_homing_cycle() st_homing_cycle()
+#define mc_dwell(seconds) plan_buffer_command(seconds) 
 #define mc_cancel() plan_buffer_command(TYPE_CANCEL)
 #define mc_airgas_disable() plan_buffer_command(TYPE_AIRGAS_DISABLE)
 #define mc_air_enable() plan_buffer_command(TYPE_AIR_ENABLE)
 #define mc_gas_enable() plan_buffer_command(TYPE_GAS_ENABLE)
-  
-// Dwell for a specific number of seconds
-void mc_dwell(double seconds);
-
-// Send the tool home (not implemented)
-void mc_go_home();
-
 
 void laser_init();
-void set_laser_intensity(uint8_t intensity);  //0-255
-void set_laser_intensity(float intensity);    //0.0-1.0 percentage
-
+void set_laser_intensity(uint8_t intensity);  //0-255 is 0-100%
 
 void airgas_init();
 void airgas_disable();

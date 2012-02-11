@@ -27,5 +27,29 @@ mbed merger notes
 - laser intensity, 255 or 1.0
 - trunc() function in gcode parser
 - NEXT_ACTION_CANCEL, newer code
+- direction_bits to be uint8_t
+- nominal_laser_intensity to be uint8_t
+- rate_delta to be int32
+- SystemCoreClock/4 to be F_CPU
+- out_bits to be uint8_t
+- static volatile int busy; no need
+- st_init
+- st_synchronize
+- st_wake_up
+- st_go_idle
+- bit masking
 
-TODO: motion_control, planner, stepper
+TODO: planner, stepper
+
+
+Coordinate Systems
+------------------
+
+- use G10 L20 P1 to make the current position the origin in the G54 coordinate system, P2 for the G55 coord system
+- select coord system with G54, G55
+- usage scenario:
+  - use G10 L20 P1 in homing cycle to set the physical home position, associated with G54
+  - use G10 L2 P2 X10 Y10 to set a standard offset from the home, associated with the G55 coords
+  - use G10 L20 P3 (or G10 L2 P3 X__ Y1__) to set a temporary origin, associated with G56
+  
+

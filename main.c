@@ -32,7 +32,7 @@
 
 
 int main() {
-  sei();
+  sei();  //enable interrupts
   serial_init();
   settings_init();  
   plan_init();      
@@ -43,7 +43,6 @@ int main() {
   limits_init();
                     
   while(true) {
-    sleep_mode();
     gc_process_line();
   }
 }
