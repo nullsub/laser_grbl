@@ -80,10 +80,10 @@ static int read_double(char *line, uint8_t *char_counter, double *double_ptr);
 
 void gc_init() {
   memset(&gc, 0, sizeof(gc));
-  gc.feed_rate = settings.default_feed_rate;
-  gc.seek_rate = settings.default_seek_rate;
+  gc.feed_rate = CONFIG_FEEDRATE;
+  gc.seek_rate = CONFIG_SEEKRATE;
   gc.absolute_mode = true;
-  gc.nominal_laser_intensity = LASER_OFF;   
+  gc.nominal_laser_intensity = 0;   
 }
 
 static double to_millimeters(double value) {
@@ -142,7 +142,7 @@ void gc_process_line() {
     if (status_code == STATUS_OK) {
         printPgmString(PSTR("ok\n"));
         // for debugging, report back actual position
-        //sprintf(tx_line,"%d, %d\r\n", st_get_position_x(), st_get_position_y());
+        //sprintf(tx_line,"%d, %d\r\n", stepper_get_position_x(), stepper_get_position_y());
         //serial_send_line();
     } else {
         switch(status_code) {          
@@ -259,42 +259,42 @@ uint8_t gc_execute_line(char *line) {
   // Perform any physical actions
   switch (next_action) {
     case NEXT_ACTION_HOMING_CYCLE: limits_homing_cycle(); clear_vector(target); break;
-    case NEXT_ACTION_DWELL: plan_dwell(p, gc.nominal_laser_intensity); break;   
+    case NEXT_ACTION_DWELL: planner_dwell(p, gc.nominal_laser_intensity); break;   
     case NEXT_ACTION_SET_COORDINATE_OFFSET: 
-    plan_set_current_position(target[X_AXIS], target[Y_AXIS], target[Z_AXIS]);
+    planner_set_current_position(target[X_AXIS], target[Y_AXIS], target[Z_AXIS]);
     break;
     case NEXT_ACTION_CANCEL:
     // cancel any planned blocks
     // this effectively resets the block buffer of the planer
     // but also causes the issue to void the projected any prospected positions
-    plan_cancel();
+    planner_cancel();
     // wait for any current blocks to finish
     // after this the stepper processing goes idle
     //mc_synchronize();
     // get the actual position from the stepper processor 
     // and fix various projected positions
-    st_get_position(&gc.position[X_AXIS], &gc.position[Y_AXIS], &gc.position[Z_AXIS]);    
-    plan_set_current_position(gc.position[X_AXIS], gc.position[Y_AXIS], gc.position[Z_AXIS]);
+    stepper_get_position(&gc.position[X_AXIS], &gc.position[Y_AXIS], &gc.position[Z_AXIS]);    
+    planner_set_current_position(gc.position[X_AXIS], gc.position[Y_AXIS], gc.position[Z_AXIS]);
     // move to the requested location
-    plan_line(target[X_AXIS], target[Y_AXIS], target[Z_AXIS], gc.seek_rate, LASER_OFF);
+    planner_line(target[X_AXIS], target[Y_AXIS], target[Z_AXIS], gc.seek_rate, 0);
     break;
     case NEXT_ACTION_AIRGAS_DISABLE:
-    plan_airgas_disable();
+    planner_airgas_disable();
     break;
     case NEXT_ACTION_AIR_ENABLE:
-    plan_air_enable();
+    planner_air_enable();
     break;
     case NEXT_ACTION_GAS_ENABLE:
-    plan_gas_enable();
+    planner_gas_enable();
     break;
     case NEXT_ACTION_DEFAULT: 
     switch (gc.motion_mode) {
       case MOTION_MODE_CANCEL: break;
       case MOTION_MODE_SEEK:
-      plan_line(target[X_AXIS], target[Y_AXIS], target[Z_AXIS], gc.seek_rate, LASER_OFF);
+      planner_line(target[X_AXIS], target[Y_AXIS], target[Z_AXIS], gc.seek_rate, 0);
       break;
       case MOTION_MODE_LINEAR:
-      plan_line(target[X_AXIS], target[Y_AXIS], target[Z_AXIS], gc.feed_rate, gc.nominal_laser_intensity);
+      planner_line(target[X_AXIS], target[Y_AXIS], target[Z_AXIS], gc.feed_rate, gc.nominal_laser_intensity);
       break;
     }    
   }

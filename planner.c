@@ -26,7 +26,6 @@
 #include <stdlib.h>
 #include <util/delay.h>
 #include <string.h>
-
 #include "planner.h"
 #include "stepper.h"
 #include "config.h"
@@ -43,6 +42,233 @@ static int32_t position[3];             // The current position of the tool in a
 static double previous_unit_vec[3];     // Unit vector of previous path line segment
 static double previous_nominal_speed;   // Nominal speed of previous path line segment
 
+// prototypes for static functions (non-accesible from other files)
+static int8_t next_block_index(int8_t block_index);
+static int8_t prev_block_index(int8_t block_index);
+static double estimate_acceleration_distance(double initial_rate, double target_rate, double acceleration);
+static double intersection_distance(double initial_rate, double final_rate, double acceleration, double distance);
+static double max_allowable_speed(double acceleration, double target_velocity, double distance);
+static void calculate_trapezoid_for_block(block_t *block, double entry_factor, double exit_factor);
+static void reduce_entry_speed_reverse(block_t *current, block_t *next);
+static void reduce_entry_speed_forward(block_t *previous, block_t *current);
+static void planner_recalculate();
+
+
+
+void planner_init() {
+  block_buffer_head = 0;
+  block_buffer_tail = 0;
+  clear_vector(position);
+  clear_vector_double(previous_unit_vec);
+  previous_nominal_speed = 0.0;
+}
+
+
+
+// Add a new linear movement to the buffer. x, y and z is 
+// the signed, absolute target position in millimeters. Feed rate specifies the speed of the motion.
+void planner_line(double x, double y, double z, double feed_rate, int nominal_laser_intensity) {
+  // calculate target position in absolute steps
+  int32_t target[3];
+  target[X_AXIS] = floor(x*CONFIG_X_STEPS_PER_MM + 0.5);
+  target[Y_AXIS] = floor(y*CONFIG_Y_STEPS_PER_MM + 0.5);
+  target[Z_AXIS] = floor(z*CONFIG_Z_STEPS_PER_MM + 0.5); 
+
+  // calculate the buffer head and check for space
+  int next_buffer_head = next_block_index( block_buffer_head );	
+  while(block_buffer_tail == next_buffer_head) {  // buffer full condition
+    // good! We are well ahead of the robot. Rest here until buffer has room.
+    sleep_mode();
+  }
+  
+  // prepare to set up new block
+  block_t *block = &block_buffer[block_buffer_head];
+  
+  // set block type to line command
+  block->type = TYPE_LINE;
+
+  // set nominal laser intensity
+  block->nominal_laser_intensity = nominal_laser_intensity;
+
+  // compute direction bits for this block
+  block->direction_bits = 0;
+  if (target[X_AXIS] < position[X_AXIS]) { block->direction_bits |= (1<<X_DIRECTION_BIT); }
+  if (target[Y_AXIS] < position[Y_AXIS]) { block->direction_bits |= (1<<Y_DIRECTION_BIT); }
+  if (target[Z_AXIS] < position[Z_AXIS]) { block->direction_bits |= (1<<Z_DIRECTION_BIT); }
+  
+  // number of steps for each axis
+  block->steps_x = labs(target[X_AXIS]-position[X_AXIS]);
+  block->steps_y = labs(target[Y_AXIS]-position[Y_AXIS]);
+  block->steps_z = labs(target[Z_AXIS]-position[Z_AXIS]);
+  block->step_event_count = max(block->steps_x, max(block->steps_y, block->steps_z));
+  if (block->step_event_count == 0) { return; };  // bail if this is a zero-length block
+  
+  // compute path vector in terms of absolute step target and current positions
+  double delta_mm[3];
+  delta_mm[X_AXIS] = (target[X_AXIS]-position[X_AXIS])/CONFIG_X_STEPS_PER_MM;
+  delta_mm[Y_AXIS] = (target[Y_AXIS]-position[Y_AXIS])/CONFIG_Y_STEPS_PER_MM;
+  delta_mm[Z_AXIS] = (target[Z_AXIS]-position[Z_AXIS])/CONFIG_Z_STEPS_PER_MM;
+  block->millimeters = sqrt( (delta_mm[X_AXIS]*delta_mm[X_AXIS]) + 
+                             (delta_mm[Y_AXIS]*delta_mm[Y_AXIS]) + 
+                             (delta_mm[Z_AXIS]*delta_mm[Z_AXIS]) );
+  double inverse_millimeters = 1.0/block->millimeters;  // store for efficency	
+  
+  // calculate nominal_speed (mm/min) and nominal_rate (step/min)
+  // minimum stepper speed is limited by MINIMUM_STEPS_PER_MINUTE in stepper.c
+  double inverse_minute = feed_rate * inverse_millimeters;
+  block->nominal_speed = block->millimeters * inverse_minute; // always > 0
+  block->nominal_rate = ceil(block->step_event_count * inverse_minute); // always > 0
+  
+  // compute the acceleration rate for this block. (step/min/acceleration_tick)
+  block->rate_delta = ceil( block->step_event_count * inverse_millimeters 
+                            * CONFIG_ACCELERATION / (60 * ACCELERATION_TICKS_PER_SECOND) );
+
+
+  //// acceleeration manager calculations
+  // Compute path unit vector                            
+  double unit_vec[3];
+  unit_vec[X_AXIS] = delta_mm[X_AXIS]*inverse_millimeters;
+  unit_vec[Y_AXIS] = delta_mm[Y_AXIS]*inverse_millimeters;
+  unit_vec[Z_AXIS] = delta_mm[Z_AXIS]*inverse_millimeters;  
+
+  // Compute max junction speed by centripetal acceleration approximation.
+  // Let a circle be tangent to both previous and current path line segments, where the junction 
+  // deviation is defined as the distance from the junction to the closest edge of the circle, 
+  // colinear with the circle center. The circular segment joining the two paths represents the 
+  // path of centripetal acceleration. Solve for max velocity based on max acceleration about the
+  // radius of the circle, defined indirectly by junction deviation. This may be also viewed as 
+  // path width or max_jerk in the previous grbl version. This approach does not actually deviate 
+  // from path, but used as a robust way to compute cornering speeds, as it takes into account the
+  // nonlinearities of both the junction angle and junction velocity.
+  double vmax_junction = ZERO_SPEED; // prime for junctions close to 0 degree
+  if ((block_buffer_head != block_buffer_tail) && (previous_nominal_speed > 0.0)) {
+    // Compute cosine of angle between previous and current path.
+    // vmax_junction is computed without sin() or acos() by trig half angle identity.
+    double cos_theta = - previous_unit_vec[X_AXIS] * unit_vec[X_AXIS] 
+                       - previous_unit_vec[Y_AXIS] * unit_vec[Y_AXIS] 
+                       - previous_unit_vec[Z_AXIS] * unit_vec[Z_AXIS] ;
+    if (cos_theta < 0.95) {
+      // any junction *not* close to 0 degree
+      vmax_junction = min(previous_nominal_speed, block->nominal_speed);  // prime for close to 180
+      if (cos_theta > -0.95) {
+        // any junction not close to neither 0 and 180 degree -> compute vmax
+        double sin_theta_d2 = sqrt(0.5*(1.0-cos_theta)); // Trig half angle identity. Always positive.
+        vmax_junction = min( vmax_junction, sqrt( CONFIG_ACCELERATION * CONFIG_JUNCTION_DEVIATION 
+                                                  * sin_theta_d2/(1.0-sin_theta_d2) ) );
+      }
+    }
+  }
+  block->vmax_junction = vmax_junction;
+  
+  // Initialize entry_speed. Compute based on deceleration to zero.
+  // This will be updated in the forward and reverse planner passes.
+  double v_allowable = max_allowable_speed(-CONFIG_ACCELERATION, ZERO_SPEED, block->millimeters);
+  block->entry_speed = min(vmax_junction, v_allowable);
+
+  // Set nominal_length_flag for more efficiency.
+  // If a block can de/ac-celerate from nominal speed to zero within the length of 
+  // the block, then the speed will always be at the the maximum junction speed and 
+  // may always be ignored for any speed reduction checks.
+  if (block->nominal_speed <= v_allowable) { block->nominal_length_flag = true; }
+  else { block->nominal_length_flag = false; }
+  block->recalculate_flag = true; // always calculate trapezoid for new block
+
+  // update previous unit_vector and nominal speed
+  memcpy(previous_unit_vec, unit_vec, sizeof(unit_vec)); // previous_unit_vec[] = unit_vec[]
+  previous_nominal_speed = block->nominal_speed;
+  //// end of acceleeration manager calculations
+
+
+  // move buffer head and update position
+  block_buffer_head = next_buffer_head;     
+  memcpy(position, target, sizeof(target)); // position[] = target[]
+
+  planner_recalculate();
+
+  // make sure the stepper interrupt is processing
+  stepper_wake_up();
+}
+
+
+void planner_dwell(double seconds, int nominal_laser_intensity) {
+// // Execute dwell in seconds. Maximum time delay is > 18 hours, more than enough for any application.
+// void mc_dwell(double seconds) {
+//    uint16_t i = floor(seconds);
+//    stepper_synchronize();
+//    _delay_ms(floor(1000*(seconds-i))); // Delay millisecond remainder
+//    while (i > 0) {
+//      _delay_ms(1000); // Delay one second
+//      i--;
+//    }
+// }  
+}
+
+
+void planner_command(uint8_t type) {
+  if (type == TYPE_CANCEL) {
+    // discard all blocks in the buffer
+    // if there is a current block processing it will still finish
+    planner_reset_block_buffer();
+    stepper_go_idle();
+  } else {
+    
+    // calculate the buffer head and check for space
+    int next_buffer_head = next_block_index( block_buffer_head );	
+    while(block_buffer_tail == next_buffer_head) {  // buffer full condition
+      // good! We are well ahead of the robot. Rest here until buffer has room.
+      sleep_mode();
+    }    
+    
+    // Prepare to set up new block
+    block_t *block = &block_buffer[block_buffer_head];
+  
+    // set block type command
+    block->type = type;
+  
+    // Move buffer head
+    block_buffer_head = next_buffer_head;
+
+    // make sure the stepper interrupt is processing  
+    stepper_wake_up();
+  }
+}
+
+
+
+bool planner_blocks_available() {
+  return block_buffer_head != block_buffer_tail;
+}
+
+block_t *planner_get_current_block() {
+  if (block_buffer_head == block_buffer_tail) { return(NULL); }
+  return(&block_buffer[block_buffer_tail]);
+}
+
+void planner_discard_current_block() {
+  if (block_buffer_head != block_buffer_tail) {
+    block_buffer_tail = next_block_index( block_buffer_tail );
+  }
+}
+
+void planner_reset_block_buffer() {
+  block_buffer_head = 0;
+  block_buffer_tail = 0;
+}
+
+
+
+
+// Reset the planner position vector and planner speed
+void planner_set_current_position(double x, double y, double z) {
+  position[X_AXIS] = floor(x*CONFIG_X_STEPS_PER_MM + 0.5);
+  position[Y_AXIS] = floor(y*CONFIG_Y_STEPS_PER_MM + 0.5);
+  position[Z_AXIS] = floor(z*CONFIG_Z_STEPS_PER_MM + 0.5);    
+  previous_nominal_speed = 0.0; // resets planner junction speeds
+  clear_vector_double(previous_unit_vec);
+}
+
+
+
 
 // Returns the index of the next block in the ring buffer.
 static int8_t next_block_index(int8_t block_index) {
@@ -57,29 +283,6 @@ static int8_t prev_block_index(int8_t block_index) {
   block_index--;
   return block_index;
 }
-
-
-void plan_discard_current_block() {
-  if (block_buffer_head != block_buffer_tail) {
-    block_buffer_tail = next_block_index( block_buffer_tail );
-  }
-}
-
-void plan_reset_block_buffer() {
-  block_buffer_head = 0;
-  block_buffer_tail = 0;
-}
-
-bool plan_blocks_available() {
-  return block_buffer_head != block_buffer_tail;
-}
-
-block_t *plan_get_current_block() {
-  if (block_buffer_head == block_buffer_tail) { return(NULL); }
-  return(&block_buffer[block_buffer_tail]);
-}
-
-
 
 
 /*            target rate -> +
@@ -136,9 +339,6 @@ static double max_allowable_speed(double acceleration, double target_velocity, d
 
 
 
-
-
-
 /*                                        
 **                                   +--------+   <- nominal_rate
 **                                  /|        |\                                
@@ -187,7 +387,7 @@ static void reduce_entry_speed_reverse(block_t *current, block_t *next) {
   // Skip if we already flagged the block as plateauing or vmax <= next entry_speed. 
   if ((!current->nominal_length_flag) && (current->vmax_junction > next->entry_speed)) {
     current->entry_speed = min( current->vmax_junction, max_allowable_speed(
-                  -settings.acceleration, next->entry_speed, current->millimeters) );
+                  -CONFIG_ACCELERATION, next->entry_speed, current->millimeters) );
   } else {
     current->entry_speed = current->vmax_junction;
   } 
@@ -208,7 +408,7 @@ static void reduce_entry_speed_forward(block_t *previous, block_t *current) {
   if (!previous->nominal_length_flag) {
     if (previous->entry_speed < current->entry_speed) {
       double entry_speed = min( current->entry_speed,
-        max_allowable_speed(-settings.acceleration, previous->entry_speed, previous->millimeters) );
+        max_allowable_speed(-CONFIG_ACCELERATION, previous->entry_speed, previous->millimeters) );
       // Check for junction speed change
       if (current->entry_speed != entry_speed) {
         current->entry_speed = entry_speed;
@@ -287,193 +487,3 @@ static void planner_recalculate() {
   next->recalculate_flag = false;
 }
 
-
-
-// Add a new linear movement to the buffer. x, y and z is 
-// the signed, absolute target position in millimeters. Feed rate specifies the speed of the motion.
-void plan_line(double x, double y, double z, double feed_rate, int nominal_laser_intensity) {
-  // calculate target position in absolute steps
-  int32_t target[3];
-  target[X_AXIS] = floor(x*settings.steps_per_mm[X_AXIS] + 0.5);
-  target[Y_AXIS] = floor(y*settings.steps_per_mm[Y_AXIS] + 0.5);
-  target[Z_AXIS] = floor(z*settings.steps_per_mm[Z_AXIS] + 0.5); 
-
-  // calculate the buffer head and check for space
-  int next_buffer_head = next_block_index( block_buffer_head );	
-  while(block_buffer_tail == next_buffer_head) {  // buffer full condition
-    // good! We are well ahead of the robot. Rest here until buffer has room.
-    sleep_mode();
-  }
-  
-  // prepare to set up new block
-  block_t *block = &block_buffer[block_buffer_head];
-  
-  // set block type to line command
-  block->type = TYPE_LINE;
-
-  // set nominal laser intensity
-  block->nominal_laser_intensity = nominal_laser_intensity;
-
-  // compute direction bits for this block
-  block->direction_bits = 0;
-  if (target[X_AXIS] < position[X_AXIS]) { block->direction_bits |= (1<<X_DIRECTION_BIT); }
-  if (target[Y_AXIS] < position[Y_AXIS]) { block->direction_bits |= (1<<Y_DIRECTION_BIT); }
-  if (target[Z_AXIS] < position[Z_AXIS]) { block->direction_bits |= (1<<Z_DIRECTION_BIT); }
-  
-  // number of steps for each axis
-  block->steps_x = labs(target[X_AXIS]-position[X_AXIS]);
-  block->steps_y = labs(target[Y_AXIS]-position[Y_AXIS]);
-  block->steps_z = labs(target[Z_AXIS]-position[Z_AXIS]);
-  block->step_event_count = max(block->steps_x, max(block->steps_y, block->steps_z));
-  if (block->step_event_count == 0) { return; };  // bail if this is a zero-length block
-  
-  // compute path vector in terms of absolute step target and current positions
-  double delta_mm[3];
-  delta_mm[X_AXIS] = (target[X_AXIS]-position[X_AXIS])/settings.steps_per_mm[X_AXIS];
-  delta_mm[Y_AXIS] = (target[Y_AXIS]-position[Y_AXIS])/settings.steps_per_mm[Y_AXIS];
-  delta_mm[Z_AXIS] = (target[Z_AXIS]-position[Z_AXIS])/settings.steps_per_mm[Z_AXIS];
-  block->millimeters = sqrt( (delta_mm[X_AXIS]*delta_mm[X_AXIS]) + 
-                             (delta_mm[Y_AXIS]*delta_mm[Y_AXIS]) + 
-                             (delta_mm[Z_AXIS]*delta_mm[Z_AXIS]) );
-  double inverse_millimeters = 1.0/block->millimeters;  // store for efficency	
-  
-  // calculate nominal_speed (mm/min) and nominal_rate (step/min)
-  // minimum stepper speed is limited by MINIMUM_STEPS_PER_MINUTE in stepper.c
-  double inverse_minute = feed_rate * inverse_millimeters;
-  block->nominal_speed = block->millimeters * inverse_minute; // always > 0
-  block->nominal_rate = ceil(block->step_event_count * inverse_minute); // always > 0
-  
-  // compute the acceleration rate for this block. (step/min/acceleration_tick)
-  block->rate_delta = ceil( block->step_event_count * inverse_millimeters 
-                            * settings.acceleration / (60 * ACCELERATION_TICKS_PER_SECOND) );
-
-
-  //// acceleeration manager calculations
-  // Compute path unit vector                            
-  double unit_vec[3];
-  unit_vec[X_AXIS] = delta_mm[X_AXIS]*inverse_millimeters;
-  unit_vec[Y_AXIS] = delta_mm[Y_AXIS]*inverse_millimeters;
-  unit_vec[Z_AXIS] = delta_mm[Z_AXIS]*inverse_millimeters;  
-
-  // Compute max junction speed by centripetal acceleration approximation.
-  // Let a circle be tangent to both previous and current path line segments, where the junction 
-  // deviation is defined as the distance from the junction to the closest edge of the circle, 
-  // colinear with the circle center. The circular segment joining the two paths represents the 
-  // path of centripetal acceleration. Solve for max velocity based on max acceleration about the
-  // radius of the circle, defined indirectly by junction deviation. This may be also viewed as 
-  // path width or max_jerk in the previous grbl version. This approach does not actually deviate 
-  // from path, but used as a robust way to compute cornering speeds, as it takes into account the
-  // nonlinearities of both the junction angle and junction velocity.
-  double vmax_junction = ZERO_SPEED; // prime for junctions close to 0 degree
-  if ((block_buffer_head != block_buffer_tail) && (previous_nominal_speed > 0.0)) {
-    // Compute cosine of angle between previous and current path.
-    // vmax_junction is computed without sin() or acos() by trig half angle identity.
-    double cos_theta = - previous_unit_vec[X_AXIS] * unit_vec[X_AXIS] 
-                       - previous_unit_vec[Y_AXIS] * unit_vec[Y_AXIS] 
-                       - previous_unit_vec[Z_AXIS] * unit_vec[Z_AXIS] ;
-    if (cos_theta < 0.95) {
-      // any junction *not* close to 0 degree
-      vmax_junction = min(previous_nominal_speed, block->nominal_speed);  // prime for close to 180
-      if (cos_theta > -0.95) {
-        // any junction not close to neither 0 and 180 degree -> compute vmax
-        double sin_theta_d2 = sqrt(0.5*(1.0-cos_theta)); // Trig half angle identity. Always positive.
-        vmax_junction = min( vmax_junction, sqrt( settings.acceleration * settings.junction_deviation 
-                                                  * sin_theta_d2/(1.0-sin_theta_d2) ) );
-      }
-    }
-  }
-  block->vmax_junction = vmax_junction;
-  
-  // Initialize entry_speed. Compute based on deceleration to zero.
-  // This will be updated in the forward and reverse planner passes.
-  double v_allowable = max_allowable_speed(-settings.acceleration, ZERO_SPEED, block->millimeters);
-  block->entry_speed = min(vmax_junction, v_allowable);
-
-  // Set nominal_length_flag for more efficiency.
-  // If a block can de/ac-celerate from nominal speed to zero within the length of 
-  // the block, then the speed will always be at the the maximum junction speed and 
-  // may always be ignored for any speed reduction checks.
-  if (block->nominal_speed <= v_allowable) { block->nominal_length_flag = true; }
-  else { block->nominal_length_flag = false; }
-  block->recalculate_flag = true; // always calculate trapezoid for new block
-
-  // update previous unit_vector and nominal speed
-  memcpy(previous_unit_vec, unit_vec, sizeof(unit_vec)); // previous_unit_vec[] = unit_vec[]
-  previous_nominal_speed = block->nominal_speed;
-  //// end of acceleeration manager calculations
-
-
-  // move buffer head and update position
-  block_buffer_head = next_buffer_head;     
-  memcpy(position, target, sizeof(target)); // position[] = target[]
-
-  planner_recalculate();
-
-  // make sure the stepper interrupt is processing
-  st_wake_up();
-}
-
-
-
-void plan_dwell(double seconds, int nominal_laser_intensity) {
-// // Execute dwell in seconds. Maximum time delay is > 18 hours, more than enough for any application.
-// void mc_dwell(double seconds) {
-//    uint16_t i = floor(seconds);
-//    st_synchronize();
-//    _delay_ms(floor(1000*(seconds-i))); // Delay millisecond remainder
-//    while (i > 0) {
-//      _delay_ms(1000); // Delay one second
-//      i--;
-//    }
-// }  
-}
-
-
-
-void plan_buffer_command(uint8_t type) {
-  if (type == TYPE_CANCEL) {
-    // discard all blocks in the buffer
-    // if there is a current block processing it will still finish
-    plan_reset_block_buffer();
-    st_go_idle();
-  } else {
-    
-    // calculate the buffer head and check for space
-    int next_buffer_head = next_block_index( block_buffer_head );	
-    while(block_buffer_tail == next_buffer_head) {  // buffer full condition
-      // good! We are well ahead of the robot. Rest here until buffer has room.
-      sleep_mode();
-    }    
-    
-    // Prepare to set up new block
-    block_t *block = &block_buffer[block_buffer_head];
-  
-    // set block type command
-    block->type = type;
-  
-    // Move buffer head
-    block_buffer_head = next_buffer_head;
-
-    // make sure the stepper interrupt is processing  
-    st_wake_up();
-  }
-}
-
-
-
-void plan_init() {
-  block_buffer_head = 0;
-  block_buffer_tail = 0;
-  clear_vector(position);
-  clear_vector_double(previous_unit_vec);
-  previous_nominal_speed = 0.0;
-}
-
-// Reset the planner position vector and planner speed
-void plan_set_current_position(double x, double y, double z) {
-  position[X_AXIS] = floor(x*settings.steps_per_mm[X_AXIS] + 0.5);
-  position[Y_AXIS] = floor(y*settings.steps_per_mm[Y_AXIS] + 0.5);
-  position[Z_AXIS] = floor(z*settings.steps_per_mm[Z_AXIS] + 0.5);    
-  previous_nominal_speed = 0.0; // resets planner junction speeds
-  clear_vector_double(previous_unit_vec);
-}

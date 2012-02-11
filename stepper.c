@@ -21,6 +21,24 @@
   but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
   GNU General Public License for more details.
+  ---
+  
+           __________________________
+          /|                        |\     _________________         ^
+         / |                        | \   /|               |\        |
+        /  |                        |  \ / |               | \       s
+       /   |                        |   |  |               |  \      p
+      /    |                        |   |  |               |   \     e
+     +-----+------------------------+---+--+---------------+----+    e
+     |               BLOCK 1            |      BLOCK 2          |    d
+  
+                             time ----->
+
+  The speed profile starts at block->initial_rate, accelerates by block->rate_delta
+  during the first block->accelerate_until step_events_completed, then keeps going at constant speed until
+  step_events_completed reaches block->decelerate_after after which it decelerates until final_rate is reached.
+  The slope of acceleration is always +/- block->rate_delta and is applied at a constant rate following the midpoint rule.
+  Speed adjustments are made ACCELERATION_TICKS_PER_SECOND times per second.  
 */
 
 #include <math.h>
@@ -39,9 +57,7 @@
 #define CYCLES_PER_ACCELERATION_TICK (F_CPU/ACCELERATION_TICKS_PER_SECOND)  // 24MHz/100 = 240000
 
 
-// real-time position in absolute steps
-static int32_t st_position[3]; 
-
+static int32_t stepper_position[3];  // real-time position in absolute steps
 static block_t *current_block;  // A pointer to the block currently being traced
 
 // Variables used by The Stepper Driver Interrupt
@@ -59,22 +75,7 @@ static uint32_t acceleration_tick_counter;    // The cycles since last accelerat
 static uint32_t adjusted_rate;       // The current rate of step_events according to the speed profile
 static bool cycle_start;             // Cycle start flag to indicate program start and block processing.
 
-/*         __________________________
-**        /|                        |\     _________________         ^
-**       / |                        | \   /|               |\        |
-**      /  |                        |  \ / |               | \       s
-**     /   |                        |   |  |               |  \      p
-**    /    |                        |   |  |               |   \     e
-**   +-----+------------------------+---+--+---------------+----+    e
-**   |               BLOCK 1            |      BLOCK 2          |    d
-**
-**                           time ----->
-*/
-//  The speed profile starts at block->initial_rate, accelerates by block->rate_delta
-//  during the first block->accelerate_until step_events_completed, then keeps going at constant speed until
-//  step_events_completed reaches block->decelerate_after after which it decelerates until final_rate is reached.
-//  The slope of acceleration is always +/- block->rate_delta and is applied at a constant rate following the midpoint rule.
-//  Speed adjustments are made ACCELERATION_TICKS_PER_SECOND times per second.
+
 
 // prototypes for static functions (non-accesible from other files)
 static bool acceleration_tick();
@@ -83,10 +84,10 @@ static uint32_t config_step_timer(uint32_t cycles);
 
 
 // Initialize and start the stepper motor subsystem
-void st_init() {  
+void stepper_init() {  
   // Configure directions of interface pins
   STEPPING_DDR |= STEPPING_MASK;
-  STEPPING_PORT = (STEPPING_PORT & ~STEPPING_MASK) | settings.invert_mask;
+  STEPPING_PORT = (STEPPING_PORT & ~STEPPING_MASK) | INVERT_MASK;
   
   // waveform generation = 0100 = CTC
   TCCR1B &= ~(1<<WGM13);
@@ -104,32 +105,31 @@ void st_init() {
   TIMSK2 |= (1<<TOIE2); // Enable Timer2 interrupt flag
   
   adjust_speed(MINIMUM_STEPS_PER_MINUTE);
-  clear_vector(st_position);
+  clear_vector(stepper_position);
   acceleration_tick_counter = 0;
   current_block = NULL;
   busy = false;
   
   // start in the idle state
   // The stepper interrupt gets started when blocks are being added.
-  st_go_idle();  
+  stepper_go_idle();  
 }
 
 
 // block until all command blocks are executed
-void st_synchronize() {
-  while(plan_blocks_available()) { 
+void stepper_synchronize() {
+  while(planner_blocks_available()) { 
     sleep_mode();
   }
 }
 
 
-
 // start processing command blocks
-void st_wake_up() {
+void stepper_wake_up() {
   if (!cycle_start) {
     cycle_start = true;
     // Initialize stepper output bits
-    out_bits = (0) ^ (settings.invert_mask);
+    out_bits = (0) ^ (INVERT_MASK);
     // Enable stepper driver interrupt
     TIMSK1 |= (1<<OCIE1A);
   }
@@ -137,26 +137,29 @@ void st_wake_up() {
 
 
 // stop processing command blocks
-void st_go_idle() {
+void stepper_go_idle() {
   cycle_start = false;
   current_block = NULL;
   // Disable stepper driver interrupt
   TIMSK1 &= ~(1<<OCIE1A);
-  set_laser_intensity(LASER_OFF);
+  set_laser_intensity(0);
 }
 
 
-// This function determines an acceleration velocity change every CYCLES_PER_ACCELERATION_TICK by
-// keeping track of the number of elapsed cycles during a de/ac-celeration. The code assumes that
-// step_events occur significantly more often than the acceleration velocity iterations.
-static bool acceleration_tick() {
-  acceleration_tick_counter += cycles_per_step_event;
-  if(acceleration_tick_counter > CYCLES_PER_ACCELERATION_TICK) {
-    acceleration_tick_counter -= CYCLES_PER_ACCELERATION_TICK;
-    return true;
-  } else {
-    return false;
-  }
+void stepper_get_position( double *x, double *y, double *z) {
+  *x = stepper_position[X_AXIS]/CONFIG_X_STEPS_PER_MM;
+  *y = stepper_position[Y_AXIS]/CONFIG_Y_STEPS_PER_MM;
+  *z = stepper_position[Z_AXIS]/CONFIG_Z_STEPS_PER_MM;
+}
+
+double stepper_get_position_x() {
+  return stepper_position[X_AXIS]/CONFIG_X_STEPS_PER_MM;
+}
+double stepper_get_position_y() {
+  return stepper_position[Y_AXIS]/CONFIG_Y_STEPS_PER_MM;
+}
+double stepper_get_position_z() {
+  return stepper_position[Z_AXIS]/CONFIG_Z_STEPS_PER_MM;
 }
 
 
@@ -167,7 +170,7 @@ static bool acceleration_tick() {
 // they execute right before this interrupt. Not a big deal, but could use some TLC at some point.
 ISR(TIMER2_OVF_vect) {
   // reset step pins
-  STEPPING_PORT = (STEPPING_PORT & ~STEPPING_MASK) | (settings.invert_mask & STEPPING_MASK);
+  STEPPING_PORT = (STEPPING_PORT & ~STEPPING_MASK) | (INVERT_MASK & STEPPING_MASK);
   TCCR2B = 0; // Disable Timer2 to prevent re-entering this interrupt when it's not needed. 
 }
   
@@ -184,8 +187,8 @@ ISR(TIMER1_COMPA_vect) {
   // Then pulse the stepping pins
   STEPPING_PORT = (STEPPING_PORT & ~STEPPING_MASK) | out_bits;
   // Enable step pulse reset timer so that The Stepper Port Reset Interrupt can reset the signal after
-  // exactly settings.pulse_microseconds microseconds, independent of the main Timer1 prescaler.
-  TCNT2 = -(((settings.pulse_microseconds-2)*CYCLES_PER_MICROSECOND) >> 3); // Reload timer counter
+  // exactly CONFIG_PULSE_MICROSECONDS microseconds, independent of the main Timer1 prescaler.
+  TCNT2 = -(((CONFIG_PULSE_MICROSECONDS-2)*CYCLES_PER_MICROSECOND) >> 3); // Reload timer counter
   TCCR2B = (1<<CS21); // Begin timer2. Full speed, 1/8 prescaler
 
   busy = true;
@@ -199,11 +202,11 @@ ISR(TIMER1_COMPA_vect) {
   // If there is no current block, attempt to pop one from the buffer
   if (current_block == NULL) {
     // Anything in the buffer?
-    current_block = plan_get_current_block();
+    current_block = planner_get_current_block();
     // if still no block command, go idle, disable interrupt
     if (current_block == NULL) {
-      STEPPING_PORT = (STEPPING_PORT & ~STEPPING_MASK) | settings.invert_mask;
-      st_go_idle();
+      STEPPING_PORT = (STEPPING_PORT & ~STEPPING_MASK) | INVERT_MASK;
+      stepper_go_idle();
       return;       
     }      
     if (current_block->type == TYPE_LINE) {  // setup new motion block command
@@ -240,28 +243,28 @@ ISR(TIMER1_COMPA_vect) {
       //////
     
       // apply stepper invert mask
-      out_bits ^= settings.invert_mask;
+      out_bits ^= INVERT_MASK;
 
       ////// keep track of absolute position
       if ((out_bits >> X_STEP_BIT) & 1) {
         if ((out_bits >> X_DIRECTION_BIT) & 1 ) {
-          st_position[X_AXIS] += 1;
+          stepper_position[X_AXIS] += 1;
         } else {
-          st_position[X_AXIS] -= 1;
+          stepper_position[X_AXIS] -= 1;
         }
       }
       if ((out_bits >> Y_STEP_BIT) & 1) {
         if ((out_bits >> Y_DIRECTION_BIT) & 1 ) {
-          st_position[Y_AXIS] += 1;
+          stepper_position[Y_AXIS] += 1;
         } else {
-          st_position[Y_AXIS] -= 1;
+          stepper_position[Y_AXIS] -= 1;
         }
       }
       if ((out_bits >> Z_STEP_BIT) & 1) {
         if ((out_bits >> Z_DIRECTION_BIT) & 1 ) {
-          st_position[Z_AXIS] += 1;
+          stepper_position[Z_AXIS] += 1;
         } else {
-          st_position[Z_AXIS] -= 1;
+          stepper_position[Z_AXIS] -= 1;
         }
       }
       //////
@@ -305,7 +308,7 @@ ISR(TIMER1_COMPA_vect) {
         }
       } else {  // block finished
         current_block = NULL;
-        plan_discard_current_block();
+        planner_discard_current_block();
       }
       ////////// END OF SPEED ADJUSTMENT
     
@@ -314,20 +317,36 @@ ISR(TIMER1_COMPA_vect) {
     case TYPE_AIRGAS_DISABLE:
       airgas_disable();
       current_block = NULL;
-      plan_discard_current_block();  
+      planner_discard_current_block();  
       break;
 
     case TYPE_AIR_ENABLE:
       air_enable();
       current_block = NULL;
-      plan_discard_current_block();  
+      planner_discard_current_block();  
       break;
 
     case TYPE_GAS_ENABLE:
       gas_enable();
       current_block = NULL;
-      plan_discard_current_block();  
+      planner_discard_current_block();  
       break;      
+  }
+}
+
+
+
+
+// This function determines an acceleration velocity change every CYCLES_PER_ACCELERATION_TICK by
+// keeping track of the number of elapsed cycles during a de/ac-celeration. The code assumes that
+// step_events occur significantly more often than the acceleration velocity iterations.
+static bool acceleration_tick() {
+  acceleration_tick_counter += cycles_per_step_event;
+  if(acceleration_tick_counter > CYCLES_PER_ACCELERATION_TICK) {
+    acceleration_tick_counter -= CYCLES_PER_ACCELERATION_TICK;
+    return true;
+  } else {
+    return false;
   }
 }
 
@@ -372,7 +391,7 @@ static uint32_t config_step_timer(uint32_t cycles) {
 }
 
 
-void adjust_speed( uint32_t steps_per_minute ) {
+static void adjust_speed( uint32_t steps_per_minute ) {
   if (steps_per_minute < MINIMUM_STEPS_PER_MINUTE) { steps_per_minute = MINIMUM_STEPS_PER_MINUTE; }
   cycles_per_step_event = config_step_timer((CYCLES_PER_MICROSECOND*1000000*60)/steps_per_minute);
 
@@ -380,22 +399,6 @@ void adjust_speed( uint32_t steps_per_minute ) {
   set_laser_intensity(current_block->nominal_laser_intensity);
 }
 
-
-void st_get_position( double *x, double *y, double *z) {
-  *x = st_position[X_AXIS]/settings.steps_per_mm[X_AXIS];
-  *y = st_position[Y_AXIS]/settings.steps_per_mm[Y_AXIS];
-  *z = st_position[Z_AXIS]/settings.steps_per_mm[Z_AXIS];
-}
-
-double st_get_position_x() {
-  return st_position[X_AXIS]/settings.steps_per_mm[X_AXIS];
-}
-double st_get_position_y() {
-  return st_position[Y_AXIS]/settings.steps_per_mm[Y_AXIS];
-}
-double st_get_position_z() {
-  return st_position[Z_AXIS]/settings.steps_per_mm[Z_AXIS];
-}
 
 
 

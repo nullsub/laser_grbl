@@ -50,7 +50,7 @@ void limit_overwrite_disable() {
 
 static void homing_cycle(bool x_axis, bool y_axis, bool z_axis, bool reverse_direction, uint32_t microseconds_per_pulse) {
   
-  uint32_t step_delay = microseconds_per_pulse - settings.pulse_microseconds;
+  uint32_t step_delay = microseconds_per_pulse - CONFIG_PULSE_MICROSECONDS;
   uint8_t out_bits = DIRECTION_MASK;
   uint8_t limit_bits;
   
@@ -64,7 +64,7 @@ static void homing_cycle(bool x_axis, bool y_axis, bool z_axis, bool reverse_dir
   }
   
   // Apply the global invert mask
-  out_bits ^= settings.invert_mask;
+  out_bits ^= INVERT_MASK;
   
   // Set direction pins
   STEPPING_PORT = (STEPPING_PORT & ~DIRECTION_MASK) | (out_bits & DIRECTION_MASK);
@@ -90,7 +90,7 @@ static void homing_cycle(bool x_axis, bool y_axis, bool z_axis, bool reverse_dir
     if(x_axis || y_axis || z_axis) {
         // step all axes still in out_bits
         STEPPING_PORT |= out_bits & STEPPING_MASK;
-        _delay_us(settings.pulse_microseconds);
+        _delay_us(CONFIG_PULSE_MICROSECONDS);
         STEPPING_PORT ^= out_bits & STEPPING_MASK;
         _delay_us(step_delay);
     } else { 
@@ -109,9 +109,9 @@ static void leave_limit_switch(bool x, bool y, bool z) {
 }
 
 void limits_homing_cycle() {
-  st_synchronize();
+  stepper_synchronize();
   // home the x and y axis
   approach_limit_switch(true, true, false);
   leave_limit_switch(true, true, false);
-  plan_set_current_position(0,0,0);
+  planner_set_current_position(0,0,0);
 }

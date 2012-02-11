@@ -32,10 +32,10 @@
 #define TYPE_AIR_ENABLE 3
 #define TYPE_GAS_ENABLE 4
 
-#define plan_cancel() plan_buffer_command(TYPE_CANCEL)
-#define plan_airgas_disable() plan_buffer_command(TYPE_AIRGAS_DISABLE)
-#define plan_air_enable() plan_buffer_command(TYPE_AIR_ENABLE)
-#define plan_gas_enable() plan_buffer_command(TYPE_GAS_ENABLE)
+#define planner_cancel() planner_command(TYPE_CANCEL)
+#define planner_airgas_disable() planner_command(TYPE_AIRGAS_DISABLE)
+#define planner_air_enable() planner_command(TYPE_AIR_ENABLE)
+#define planner_gas_enable() planner_command(TYPE_GAS_ENABLE)
 
 
 // This struct is used when buffering the setup for each linear movement "nominal" values are as specified in 
@@ -65,32 +65,34 @@ typedef struct {
 } block_t;
       
 // Initialize the motion plan subsystem      
-void plan_init();
+void planner_init();
 
 // Add a new linear movement to the buffer. x, y and z is 
 // the signed, absolute target position in millimaters. Feed rate specifies the speed of the motion.
-void plan_line(double x, double y, double z, double feed_rate, int nominal_laser_intensity);
+void planner_line(double x, double y, double z, double feed_rate, int nominal_laser_intensity);
 
 // Add a new piercing action, lasing at one spot
-void plan_dwell(double seconds, int nominal_laser_intensity);
+void planner_dwell(double seconds, int nominal_laser_intensity);
 
 // Add a non-motion command to the queue.
 // Typical types are: TYPE_CANCEL, TYPE_AIRGAS_DISABLE, TYPE_AIR_ENABLE, TYPE_GAS_ENABLE
-void plan_buffer_command(uint8_t type);
+void planner_command(uint8_t type);
+
+
+bool planner_blocks_available();
+
+// Gets the current block. Returns NULL if buffer empty
+block_t *planner_get_current_block();
 
 // Called when the current block is no longer needed. Discards the block and makes the memory
 // availible for new blocks.
-void plan_discard_current_block();
-
-// Gets the current block. Returns NULL if buffer empty
-block_t *plan_get_current_block();
+void planner_discard_current_block();
 
 // purge all command in the buffer
-void plan_reset_block_buffer();
+void planner_reset_block_buffer();
 
-bool plan_blocks_available();
 
 // Reset the position vector
-void plan_set_current_position(double x, double y, double z); 
+void planner_set_current_position(double x, double y, double z); 
 
 #endif

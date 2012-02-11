@@ -18,8 +18,8 @@ You should have received a copy of the GNU General Public License
 along with Grbl. If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef limits_h
-#define limits_h
+#ifndef input_control_h
+#define input_control_h
 
 // initialize the limits module
 void limits_init();

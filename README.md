@@ -33,10 +33,10 @@ mbed merger notes
 - SystemCoreClock/4 to be F_CPU
 - out_bits to be uint8_t
 - static volatile int busy; no need
-- st_init
-- st_synchronize
-- st_wake_up
-- st_go_idle
+- stepper_init
+- stepper_synchronize
+- stepper_wake_up
+- stepper_go_idle
 - bit masking
 
 TODO: dwell, cancel, coordinate systems

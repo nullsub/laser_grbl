@@ -27,9 +27,10 @@
 #include <stdbool.h>
 
 
+#define LASAURGRBL_VERSION "v12.03-beta1"
 #define BAUD_RATE 9600
-#define LASER_OFF 0
-    
+
+
 #define LIMIT_OVERWRITE_DDR     DDRD
 #define LIMIT_OVERWRITE_PORT    PORTD
 #define LIMIT_OVERWRITE_BIT     7
@@ -48,10 +49,6 @@
 #define Y1_LIMIT_BIT            2
 #define Y2_LIMIT_BIT            3
 
-#define X_DIRECTION_INV         true       //inverted
-#define Y_DIRECTION_INV         true       //inverted
-#define Z_DIRECTION_INV         true       //inverted
-
 #define AIRGAS_DDR              DDRC
 #define AIRGAS_PORT             PORTC
 #define AIR_BIT                 4
@@ -67,42 +64,20 @@
 #define Z_DIRECTION_BIT         5
 
 
-
-#define LIMIT_MASK ((1<<X1_LIMIT_BIT)|(1<<X2_LIMIT_BIT)|(1<<Y1_LIMIT_BIT)|(1<<Y2_LIMIT_BIT)) // All limit bits
-#define STEPPING_MASK ((1<<X_STEP_BIT)|(1<<Y_STEP_BIT)|(1<<Z_STEP_BIT)) // All step bits
-#define DIRECTION_MASK ((1<<X_DIRECTION_BIT)|(1<<Y_DIRECTION_BIT)|(1<<Z_DIRECTION_BIT)) // All direction bits
-
-
-// bit math
-// see: http://www.arduino.cc/playground/Code/BitMath
-// see: http://graphics.stanford.edu/~seander/bithacks.html
-//
-// y = (x >> n) & 1; // n=0..15. stores nth bit of x in y. y becomes 0 or 1.
-//
-// x &= ~(1 << n); // forces nth bit of x to be 0. all other bits left alone.
-//
-// x &= (1<<(n+1))-1; // leaves alone the lowest n bits of x; all higher bits set to 0.
-//
-// x |= (1 << n); // forces nth bit of x to be 1. all other bits left alone.
-//
-// x ^= (1 << n); // toggles nth bit of x. all other bits left alone.
-//
-// x = ~x; // toggles ALL the bits in x.
+#define LIMIT_MASK ((1<<X1_LIMIT_BIT)|(1<<X2_LIMIT_BIT)|(1<<Y1_LIMIT_BIT)|(1<<Y2_LIMIT_BIT))
+#define STEPPING_MASK ((1<<X_STEP_BIT)|(1<<Y_STEP_BIT)|(1<<Z_STEP_BIT))
+#define DIRECTION_MASK ((1<<X_DIRECTION_BIT)|(1<<Y_DIRECTION_BIT)|(1<<Z_DIRECTION_BIT))
+#define INVERT_MASK 24U  // 0x00011000 invert direction pin 3 and 4, (1<<X_DIRECTION_BIT) | (1<<Y_DIRECTION_BIT)
 
 
-#define MICROSTEPS 10
-#define DEFAULT_X_STEPS_PER_MM 32.80839895 //microsteps/mm
-#define DEFAULT_Y_STEPS_PER_MM 32.80839895 //microsteps/mm
-#define DEFAULT_Z_STEPS_PER_MM 32.80839895 //microsteps/mm
-#define DEFAULT_STEP_PULSE_MICROSECONDS 5
-#define DEFAULT_MM_PER_ARC_SEGMENT 0.1
-#define DEFAULT_RAPID_FEEDRATE 20000.0 // in millimeters per minute
-#define DEFAULT_FEEDRATE 5000.0
-#define DEFAULT_ACCELERATION 500.0 // mm/sec^2
-#define DEFAULT_JUNCTION_DEVIATION 0.1 // mm
-
-
-#define LASAURGRBL_VERSION "v12.03"
+#define CONFIG_X_STEPS_PER_MM 32.80839895 //microsteps/mm
+#define CONFIG_Y_STEPS_PER_MM 32.80839895 //microsteps/mm
+#define CONFIG_Z_STEPS_PER_MM 32.80839895 //microsteps/mm
+#define CONFIG_PULSE_MICROSECONDS 5
+#define CONFIG_FEEDRATE 20000.0 // in millimeters per minute
+#define CONFIG_SEEKRATE 5000.0
+#define CONFIG_ACCELERATION 1800000.0 // mm/min^2, typically 1000000-8000000, divide by (60*60) to get mm/sec^2
+#define CONFIG_JUNCTION_DEVIATION 0.1 // mm
 
 
 // The temporal resolution of the acceleration management subsystem. Higher number give smoother
@@ -129,26 +104,10 @@
 // 1600 @ 32step_per_mm = 50mm/min
 
 
-
-typedef struct {
-    double steps_per_mm[3];
-    uint32_t microsteps;
-    uint32_t pulse_microseconds;
-    double default_feed_rate;
-    double default_seek_rate;
-    double mm_per_arc_segment;
-    double acceleration;
-    double junction_deviation;
-    uint32_t invert_mask;
-} settings_t;
-extern settings_t settings;
-
-
-void settings_init();
-
 #define X_AXIS 0
 #define Y_AXIS 1
 #define Z_AXIS 2
+
 
 #define clear_vector(a) memset(a, 0, sizeof(a))
 #define clear_vector_double(a) memset(a, 0.0, sizeof(a))
@@ -157,4 +116,22 @@ void settings_init();
 
 
 #endif
+
+
+
+// bit math
+// see: http://www.arduino.cc/playground/Code/BitMath
+// see: http://graphics.stanford.edu/~seander/bithacks.html
+//
+// y = (x >> n) & 1; // n=0..15. stores nth bit of x in y. y becomes 0 or 1.
+//
+// x &= ~(1 << n); // forces nth bit of x to be 0. all other bits left alone.
+//
+// x &= (1<<(n+1))-1; // leaves alone the lowest n bits of x; all higher bits set to 0.
+//
+// x |= (1 << n); // forces nth bit of x to be 1. all other bits left alone.
+//
+// x ^= (1 << n); // toggles nth bit of x. all other bits left alone.
+//
+// x = ~x; // toggles ALL the bits in x.
 

@@ -167,11 +167,6 @@ SIGNAL(USART_RX_vect) {
 
 
 
-
-#ifndef DECIMAL_PLACES
-#define DECIMAL_PLACES 3
-#endif
-
 void printString(const char *s) {
   while (*s) {
     serial_write(*s++);
@@ -217,15 +212,14 @@ void printInteger(long n) {
 }
 
 // A very simple
-void printFloat(double n)
-{
+void printFloat(double n) {
   double integer_part, fractional_part;
   uint8_t decimal_part;
   fractional_part = modf(n, &integer_part);
   printInteger(integer_part);
   serial_write('.');
   fractional_part *= 10;
-  int decimals = DECIMAL_PLACES;
+  int decimals = 3;
   while(decimals-- > 0) {
     decimal_part = floor(fractional_part);
     serial_write('0'+decimal_part);

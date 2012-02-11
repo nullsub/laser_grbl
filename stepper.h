@@ -31,22 +31,22 @@
 
 
 // Initialize and start the stepper motor subsystem
-void st_init();
+void stepper_init();
 
 // Block until all buffered steps are executed
-void st_synchronize();
+void stepper_synchronize();
              
 // Start stepper interrupt and execute the blocks in queue.
-void st_wake_up();
+void stepper_wake_up();
 
 // make the stepper subsystem fall asleep
-void st_go_idle();
+void stepper_go_idle();
 
 // Get the actual position of the head in mm.
 // This is as accurate as an open loop system can be.
-void st_get_position( double *x, double *y, double *z);
-double st_get_position_x();
-double st_get_position_y();
-double st_get_position_z();
+void stepper_get_position( double *x, double *y, double *z);
+double stepper_get_position_x();
+double stepper_get_position_y();
+double stepper_get_position_z();
 
 #endif

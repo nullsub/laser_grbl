@@ -34,9 +34,8 @@
 int main() {
   sei();  //enable interrupts
   serial_init();
-  settings_init();  
-  plan_init();      
-  st_init();
+  planner_init();      
+  stepper_init();
   laser_init();
   airgas_init();
   gc_init();
