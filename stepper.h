@@ -42,9 +42,12 @@ void stepper_wake_up();
 // make the stepper subsystem fall asleep
 void stepper_go_idle();
 
+// makes sure steppers are forced stepper_go_idle()
+// at the beginning of the stepper interrupt
+void stepper_stop();
+
 // Get the actual position of the head in mm.
 // This is as accurate as an open loop system can be.
-void stepper_get_position( double *x, double *y, double *z);
 double stepper_get_position_x();
 double stepper_get_position_y();
 double stepper_get_position_z();

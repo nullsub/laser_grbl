@@ -38,10 +38,10 @@ int main() {
   stepper_init();
   laser_init();
   airgas_init();
-  gc_init();
+  gcode_init();
   limits_init();
                     
   while(true) {
-    gc_process_line();
+    gcode_process_line();
   }
 }

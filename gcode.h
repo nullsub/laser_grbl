@@ -27,12 +27,12 @@
 
 
 // Initialize the parser
-void gc_init();
+void gcode_init();
 
 // read chars from serial
-void gc_process_line();
+void gcode_process_line();
 
 // Execute one block of rs275/ngc/g-code
-uint8_t gc_execute_line(char *line);
+uint8_t gcode_execute_line(char *line);
 
 #endif

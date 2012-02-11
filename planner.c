@@ -67,7 +67,7 @@ void planner_init() {
 
 // Add a new linear movement to the buffer. x, y and z is 
 // the signed, absolute target position in millimeters. Feed rate specifies the speed of the motion.
-void planner_line(double x, double y, double z, double feed_rate, int nominal_laser_intensity) {
+void planner_line(double x, double y, double z, double feed_rate, uint8_t nominal_laser_intensity) {
   // calculate target position in absolute steps
   int32_t target[3];
   target[X_AXIS] = floor(x*CONFIG_X_STEPS_PER_MM + 0.5);
@@ -190,7 +190,7 @@ void planner_line(double x, double y, double z, double feed_rate, int nominal_la
 }
 
 
-void planner_dwell(double seconds, int nominal_laser_intensity) {
+void planner_dwell(double seconds, uint8_t nominal_laser_intensity) {
 // // Execute dwell in seconds. Maximum time delay is > 18 hours, more than enough for any application.
 // void mc_dwell(double seconds) {
 //    uint16_t i = floor(seconds);
@@ -205,11 +205,11 @@ void planner_dwell(double seconds, int nominal_laser_intensity) {
 
 
 void planner_command(uint8_t type) {
-  if (type == TYPE_CANCEL) {
+  if (type == TYPE_STOP) {
     // discard all blocks in the buffer
-    // if there is a current block processing it will still finish
+    // and request the steppers to stop
     planner_reset_block_buffer();
-    stepper_go_idle();
+    stepper_stop();
   } else {
     
     // calculate the buffer head and check for space

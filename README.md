@@ -26,7 +26,7 @@ mbed merger notes
 
 - laser intensity, 255 or 1.0
 - trunc() function in gcode parser
-- NEXT_ACTION_CANCEL, newer code
+- NEXT_ACTION_STOP, newer code
 - direction_bits to be uint8_t
 - nominal_laser_intensity to be uint8_t
 - rate_delta to be int32
@@ -40,13 +40,15 @@ mbed merger notes
 - bit masking
 
 TODO: dwell, cancel, coordinate systems
+      proportional laser intensity
+      check for: limits, door, power (vrel), chiller
 
 
 Coordinate Systems
 ------------------
 
 - use G10 L20 P1 to make the current position the origin in the G54 coordinate system, P2 for the G55 coord system
-- select coord system with G54, G55
+- select coord system with G54, G55, G56
 - usage scenario:
   - use G10 L20 P1 in homing cycle to set the physical home position, associated with G54
   - use G10 L2 P2 X10 Y10 to set a standard offset from the home, associated with the G55 coords

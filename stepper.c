@@ -72,15 +72,16 @@ static volatile uint8_t busy;  // true whe stepper ISR is in already running
 static uint32_t cycles_per_step_event;        // The number of machine cycles between each step event
 static uint32_t acceleration_tick_counter;    // The cycles since last acceleration_tick.
                                               // Used to generate ticks at a steady pace without allocating a separate timer.
-static uint32_t adjusted_rate;       // The current rate of step_events according to the speed profile
-static bool cycle_start;             // Cycle start flag to indicate program start and block processing.
-
+static uint32_t adjusted_rate;                // The current rate of step_events according to the speed profile
+static bool processing_flag;                  // indicates if blocks are being processed
+static volatile bool stop_requested;          // when set to true stepper interrupt will go idle on next entry
 
 
 // prototypes for static functions (non-accesible from other files)
 static bool acceleration_tick();
 static void adjust_speed( uint32_t steps_per_minute );
 static uint32_t config_step_timer(uint32_t cycles);
+
 
 
 // Initialize and start the stepper motor subsystem
@@ -108,6 +109,7 @@ void stepper_init() {
   clear_vector(stepper_position);
   acceleration_tick_counter = 0;
   current_block = NULL;
+  stop_requested = false;
   busy = false;
   
   // start in the idle state
@@ -118,7 +120,7 @@ void stepper_init() {
 
 // block until all command blocks are executed
 void stepper_synchronize() {
-  while(planner_blocks_available()) { 
+  while(processing_flag) { 
     sleep_mode();
   }
 }
@@ -126,8 +128,8 @@ void stepper_synchronize() {
 
 // start processing command blocks
 void stepper_wake_up() {
-  if (!cycle_start) {
-    cycle_start = true;
+  if (!processing_flag) {
+    processing_flag = true;
     // Initialize stepper output bits
     out_bits = (0) ^ (INVERT_MASK);
     // Enable stepper driver interrupt
@@ -138,19 +140,18 @@ void stepper_wake_up() {
 
 // stop processing command blocks
 void stepper_go_idle() {
-  cycle_start = false;
+  processing_flag = false;
   current_block = NULL;
   // Disable stepper driver interrupt
   TIMSK1 &= ~(1<<OCIE1A);
   set_laser_intensity(0);
 }
 
-
-void stepper_get_position( double *x, double *y, double *z) {
-  *x = stepper_position[X_AXIS]/CONFIG_X_STEPS_PER_MM;
-  *y = stepper_position[Y_AXIS]/CONFIG_Y_STEPS_PER_MM;
-  *z = stepper_position[Z_AXIS]/CONFIG_Z_STEPS_PER_MM;
+// stop processing command blocks on next ISR call
+void stepper_stop() {
+  stop_requested = true;
 }
+
 
 double stepper_get_position_x() {
   return stepper_position[X_AXIS]/CONFIG_X_STEPS_PER_MM;
@@ -181,13 +182,12 @@ ISR(TIMER2_OVF_vect) {
 // The bresenham line tracer algorithm controls all three stepper outputs simultaneously.
 ISR(TIMER1_COMPA_vect) {
   if (busy) { return; } // The busy-flag is used to avoid reentering this interrupt
+  if (stop_requested) { stepper_go_idle(); stop_requested = false; }
   
-  // Set the direction pins a couple of nanoseconds before we step the steppers
+  // pulse steppers
   STEPPING_PORT = (STEPPING_PORT & ~DIRECTION_MASK) | (out_bits & DIRECTION_MASK);
-  // Then pulse the stepping pins
   STEPPING_PORT = (STEPPING_PORT & ~STEPPING_MASK) | out_bits;
-  // Enable step pulse reset timer so that The Stepper Port Reset Interrupt can reset the signal after
-  // exactly CONFIG_PULSE_MICROSECONDS microseconds, independent of the main Timer1 prescaler.
+  // prime for reset pulse in CONFIG_PULSE_MICROSECONDS
   TCNT2 = -(((CONFIG_PULSE_MICROSECONDS-2)*CYCLES_PER_MICROSECOND) >> 3); // Reload timer counter
   TCCR2B = (1<<CS21); // Begin timer2. Full speed, 1/8 prescaler
 
@@ -205,7 +205,6 @@ ISR(TIMER1_COMPA_vect) {
     current_block = planner_get_current_block();
     // if still no block command, go idle, disable interrupt
     if (current_block == NULL) {
-      STEPPING_PORT = (STEPPING_PORT & ~STEPPING_MASK) | INVERT_MASK;
       stepper_go_idle();
       return;       
     }      
@@ -332,6 +331,8 @@ ISR(TIMER1_COMPA_vect) {
       planner_discard_current_block();  
       break;      
   }
+  
+  busy = false;
 }
 
 
