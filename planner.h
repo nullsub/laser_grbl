@@ -32,6 +32,11 @@
 #define TYPE_AIR_ENABLE 3
 #define TYPE_GAS_ENABLE 4
 
+#define plan_cancel() plan_buffer_command(TYPE_CANCEL)
+#define plan_airgas_disable() plan_buffer_command(TYPE_AIRGAS_DISABLE)
+#define plan_air_enable() plan_buffer_command(TYPE_AIR_ENABLE)
+#define plan_gas_enable() plan_buffer_command(TYPE_GAS_ENABLE)
+
 
 // This struct is used when buffering the setup for each linear movement "nominal" values are as specified in 
 // the source g-code and may never actually be reached if acceleration management is active.
@@ -64,10 +69,10 @@ void plan_init();
 
 // Add a new linear movement to the buffer. x, y and z is 
 // the signed, absolute target position in millimaters. Feed rate specifies the speed of the motion.
-void plan_buffer_line(double x, double y, double z, double feed_rate, int nominal_laser_intensity);
+void plan_line(double x, double y, double z, double feed_rate, int nominal_laser_intensity);
 
 // Add a new piercing action, lasing at one spot
-void plan_buffer_dwell(double seconds, int nominal_laser_intensity);
+void plan_dwell(double seconds, int nominal_laser_intensity);
 
 // Add a non-motion command to the queue.
 // Typical types are: TYPE_CANCEL, TYPE_AIRGAS_DISABLE, TYPE_AIR_ENABLE, TYPE_GAS_ENABLE

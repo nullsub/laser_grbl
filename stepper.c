@@ -381,12 +381,6 @@ void adjust_speed( uint32_t steps_per_minute ) {
 }
 
 
-void st_homing_cycle() {
-  limits_homing_cycle();
-  plan_set_current_position(0,0,0);
-}
-
-
 void st_get_position( double *x, double *y, double *z) {
   *x = st_position[X_AXIS]/settings.steps_per_mm[X_AXIS];
   *y = st_position[Y_AXIS]/settings.steps_per_mm[Y_AXIS];

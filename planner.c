@@ -291,7 +291,7 @@ static void planner_recalculate() {
 
 // Add a new linear movement to the buffer. x, y and z is 
 // the signed, absolute target position in millimeters. Feed rate specifies the speed of the motion.
-void plan_buffer_line(double x, double y, double z, double feed_rate, int nominal_laser_intensity) {
+void plan_line(double x, double y, double z, double feed_rate, int nominal_laser_intensity) {
   // calculate target position in absolute steps
   int32_t target[3];
   target[X_AXIS] = floor(x*settings.steps_per_mm[X_AXIS] + 0.5);
@@ -415,7 +415,7 @@ void plan_buffer_line(double x, double y, double z, double feed_rate, int nomina
 
 
 
-void plan_buffer_dwell(double seconds, int nominal_laser_intensity) {
+void plan_dwell(double seconds, int nominal_laser_intensity) {
 // // Execute dwell in seconds. Maximum time delay is > 18 hours, more than enough for any application.
 // void mc_dwell(double seconds) {
 //    uint16_t i = floor(seconds);

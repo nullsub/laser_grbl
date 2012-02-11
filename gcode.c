@@ -258,43 +258,43 @@ uint8_t gc_execute_line(char *line) {
       
   // Perform any physical actions
   switch (next_action) {
-    case NEXT_ACTION_HOMING_CYCLE: mc_homing_cycle(); clear_vector(target); break;
-    case NEXT_ACTION_DWELL: mc_dwell(p, gc.nominal_laser_intensity); break;   
+    case NEXT_ACTION_HOMING_CYCLE: limits_homing_cycle(); clear_vector(target); break;
+    case NEXT_ACTION_DWELL: plan_dwell(p, gc.nominal_laser_intensity); break;   
     case NEXT_ACTION_SET_COORDINATE_OFFSET: 
-    mc_set_current_position(target[X_AXIS], target[Y_AXIS], target[Z_AXIS]);
+    plan_set_current_position(target[X_AXIS], target[Y_AXIS], target[Z_AXIS]);
     break;
     case NEXT_ACTION_CANCEL:
     // cancel any planned blocks
     // this effectively resets the block buffer of the planer
     // but also causes the issue to void the projected any prospected positions
-    mc_cancel();
+    plan_cancel();
     // wait for any current blocks to finish
     // after this the stepper processing goes idle
     //mc_synchronize();
     // get the actual position from the stepper processor 
     // and fix various projected positions
-    mc_get_actual_position(&gc.position[X_AXIS], &gc.position[Y_AXIS], &gc.position[Z_AXIS]);    
-    mc_set_current_position(gc.position[X_AXIS], gc.position[Y_AXIS], gc.position[Z_AXIS]);
+    st_get_position(&gc.position[X_AXIS], &gc.position[Y_AXIS], &gc.position[Z_AXIS]);    
+    plan_set_current_position(gc.position[X_AXIS], gc.position[Y_AXIS], gc.position[Z_AXIS]);
     // move to the requested location
-    mc_line(target[X_AXIS], target[Y_AXIS], target[Z_AXIS], gc.seek_rate, LASER_OFF);
+    plan_line(target[X_AXIS], target[Y_AXIS], target[Z_AXIS], gc.seek_rate, LASER_OFF);
     break;
     case NEXT_ACTION_AIRGAS_DISABLE:
-    mc_airgas_disable();
+    plan_airgas_disable();
     break;
     case NEXT_ACTION_AIR_ENABLE:
-    mc_air_enable();
+    plan_air_enable();
     break;
     case NEXT_ACTION_GAS_ENABLE:
-    mc_gas_enable();
+    plan_gas_enable();
     break;
     case NEXT_ACTION_DEFAULT: 
     switch (gc.motion_mode) {
       case MOTION_MODE_CANCEL: break;
       case MOTION_MODE_SEEK:
-      mc_line(target[X_AXIS], target[Y_AXIS], target[Z_AXIS], gc.seek_rate, LASER_OFF);
+      plan_line(target[X_AXIS], target[Y_AXIS], target[Z_AXIS], gc.seek_rate, LASER_OFF);
       break;
       case MOTION_MODE_LINEAR:
-      mc_line(target[X_AXIS], target[Y_AXIS], target[Z_AXIS], gc.feed_rate, gc.nominal_laser_intensity);
+      plan_line(target[X_AXIS], target[Y_AXIS], target[Z_AXIS], gc.feed_rate, gc.nominal_laser_intensity);
       break;
     }    
   }

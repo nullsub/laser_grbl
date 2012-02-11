@@ -39,7 +39,7 @@ mbed merger notes
 - st_go_idle
 - bit masking
 
-TODO: planner, stepper
+TODO: dwell, cancel, coordinate systems
 
 
 Coordinate Systems

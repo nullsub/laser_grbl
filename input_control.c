@@ -20,9 +20,9 @@
   
 #include <util/delay.h>
 #include <avr/io.h>
-
 #include "config.h"
 #include "stepper.h"
+#include "planner.h"
 #include "input_control.h"
 
 
@@ -113,4 +113,5 @@ void limits_homing_cycle() {
   // home the x and y axis
   approach_limit_switch(true, true, false);
   leave_limit_switch(true, true, false);
+  plan_set_current_position(0,0,0);
 }

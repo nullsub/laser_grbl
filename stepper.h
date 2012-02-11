@@ -35,9 +35,6 @@ void st_init();
 
 // Block until all buffered steps are executed
 void st_synchronize();
-
-// Execute the homing cycle
-void st_homing_cycle();
              
 // Start stepper interrupt and execute the blocks in queue.
 void st_wake_up();
