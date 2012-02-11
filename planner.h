@@ -66,6 +66,9 @@ void plan_init();
 // the signed, absolute target position in millimaters. Feed rate specifies the speed of the motion.
 void plan_buffer_line(double x, double y, double z, double feed_rate, int nominal_laser_intensity);
 
+// Add a new piercing action, lasing at one spot
+void plan_buffer_dwell(double seconds, int nominal_laser_intensity);
+
 // Add a non-motion command to the queue.
 // Typical types are: TYPE_CANCEL, TYPE_AIRGAS_DISABLE, TYPE_AIR_ENABLE, TYPE_GAS_ENABLE
 void plan_buffer_command(uint8_t type);

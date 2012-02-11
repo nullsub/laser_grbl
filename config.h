@@ -23,6 +23,9 @@
 #ifndef config_h
 #define config_h
 
+#include <inttypes.h>
+#include <stdbool.h>
+
 
 #define BAUD_RATE 9600
 #define LASER_OFF 0
@@ -45,6 +48,10 @@
 #define Y1_LIMIT_BIT            2
 #define Y2_LIMIT_BIT            3
 
+#define X_DIRECTION_INV         true       //inverted
+#define Y_DIRECTION_INV         true       //inverted
+#define Z_DIRECTION_INV         true       //inverted
+
 #define AIRGAS_DDR              DDRC
 #define AIRGAS_PORT             PORTC
 #define AIR_BIT                 4
@@ -62,7 +69,7 @@
 
 
 #define LIMIT_MASK ((1<<X1_LIMIT_BIT)|(1<<X2_LIMIT_BIT)|(1<<Y1_LIMIT_BIT)|(1<<Y2_LIMIT_BIT)) // All limit bits
-#define STEP_MASK ((1<<X_STEP_BIT)|(1<<Y_STEP_BIT)|(1<<Z_STEP_BIT)) // All step bits
+#define STEPPING_MASK ((1<<X_STEP_BIT)|(1<<Y_STEP_BIT)|(1<<Z_STEP_BIT)) // All step bits
 #define DIRECTION_MASK ((1<<X_DIRECTION_BIT)|(1<<Y_DIRECTION_BIT)|(1<<Z_DIRECTION_BIT)) // All direction bits
 
 
@@ -98,15 +105,6 @@
 #define LASAURGRBL_VERSION "v12.03"
 
 
-// This parameter sets the delay time before disabling the steppers after the final block of movement.
-// A short delay ensures the steppers come to a complete stop and the residual inertial force in the 
-// CNC axes don't cause the axes to drift off position. This is particularly important when manually 
-// entering g-code into grbl, i.e. locating part zero or simple manual machining. If the axes drift,
-// grbl has no way to know this has happened, since stepper motors are open-loop control. Depending
-// on the machine, this parameter may need to be larger or smaller than the default time.
-// NOTE: If defined 0, the delay will not be compiled.
-#define STEPPER_IDLE_LOCK_TIME 250 // (milliseconds) - Integer >= 0
-
 // The temporal resolution of the acceleration management subsystem. Higher number give smoother
 // acceleration but may impact performance.
 // NOTE: Increasing this parameter will help any resolution related issues, especially with machines 
@@ -121,20 +119,14 @@
 // Minimum planner junction speed. Sets the default minimum speed the planner plans for at the end
 // of the buffer and all stops. This should not be much greater than zero and should only be changed
 // if unwanted behavior is observed on a user's machine when running at very slow speeds.
-#define MINIMUM_PLANNER_SPEED 0.0 // (mm/min)
+#define ZERO_SPEED 0.0 // (mm/min)
 
 // Minimum stepper rate. Sets the absolute minimum stepper rate in the stepper program and never runs
 // slower than this value, except when sleeping. This parameter overrides the minimum planner speed.
 // This is primarily used to guarantee that the end of a movement is always reached and not stop to
 // never reach its target. This parameter should always be greater than zero.
-#define MINIMUM_STEPS_PER_MINUTE 2400 // (steps/min) - Integer value only
-
-// Number of arc generation iterations by small angle approximation before exact arc trajectory 
-// correction. This parameter maybe decreased if there are issues with the accuracy of the arc
-// generations. In general, the default value is more than enough for the intended CNC applications
-// of grbl, and should be on the order or greater than the size of the buffer to help with the 
-// computational efficiency of generating arcs.
-#define N_ARC_CORRECTION 25 // Integer (1-255)
+#define MINIMUM_STEPS_PER_MINUTE 1600 // (steps/min) - Integer value only
+// 1600 @ 32step_per_mm = 50mm/min
 
 
 
@@ -153,10 +145,6 @@ extern settings_t settings;
 
 
 void settings_init();
-
-
-#define false 0
-#define true 1
 
 #define X_AXIS 0
 #define Y_AXIS 1

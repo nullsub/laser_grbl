@@ -21,7 +21,9 @@
 
 #ifndef gcode_h
 #define gcode_h
+
 #include <avr/io.h>
+#include <avr/pgmspace.h>
 
 
 // Initialize the parser

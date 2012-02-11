@@ -30,19 +30,6 @@
 #include "stepper.h"
 #include "planner.h"
 
-// Execute dwell in seconds. Maximum time delay is > 18 hours, more than enough for any application.
-void mc_dwell(double seconds) {
-   uint16_t i = floor(seconds);
-   st_synchronize();
-   _delay_ms(floor(1000*(seconds-i))); // Delay millisecond remainder
-   while (i > 0) {
-     _delay_ms(1000); // Delay one second
-     i--;
-   }
-}
-
-
-
 
 
 void laser_init() {
@@ -75,9 +62,6 @@ void set_laser_intensity(uint8_t intensity) {
   OCR0A = intensity;
 }
 
-void set_laser_intensity(float intensity) {
-  OCR0A = (uint8_t)(intensity*255);
-}
 
 
 void airgas_init() {

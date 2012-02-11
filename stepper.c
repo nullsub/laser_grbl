@@ -27,6 +27,7 @@
 #include <stdlib.h>
 #include <util/delay.h>
 #include <avr/interrupt.h>
+#include <string.h>
 #include "stepper.h"
 #include "config.h"
 #include "planner.h"
@@ -49,6 +50,7 @@ static int32_t counter_x,       // Counter variables for the bresenham line trac
                counter_y,
                counter_z;
 static uint32_t step_events_completed; // The number of step events executed in the current block
+static volatile uint8_t busy;  // true whe stepper ISR is in already running
 
 // Variables used by the trapezoid generation
 static uint32_t cycles_per_step_event;        // The number of machine cycles between each step event
@@ -57,26 +59,27 @@ static uint32_t acceleration_tick_counter;    // The cycles since last accelerat
 static uint32_t adjusted_rate;       // The current rate of step_events according to the speed profile
 static bool cycle_start;             // Cycle start flag to indicate program start and block processing.
 
-//         __________________________
-//        /|                        |\     _________________         ^
-//       / |                        | \   /|               |\        |
-//      /  |                        |  \ / |               | \       s
-//     /   |                        |   |  |               |  \      p
-//    /    |                        |   |  |               |   \     e
-//   +-----+------------------------+---+--+---------------+----+    e
-//   |               BLOCK 1            |      BLOCK 2          |    d
-//
-//                           time ----->
-//
+/*         __________________________
+**        /|                        |\     _________________         ^
+**       / |                        | \   /|               |\        |
+**      /  |                        |  \ / |               | \       s
+**     /   |                        |   |  |               |  \      p
+**    /    |                        |   |  |               |   \     e
+**   +-----+------------------------+---+--+---------------+----+    e
+**   |               BLOCK 1            |      BLOCK 2          |    d
+**
+**                           time ----->
+*/
 //  The speed profile starts at block->initial_rate, accelerates by block->rate_delta
 //  during the first block->accelerate_until step_events_completed, then keeps going at constant speed until
 //  step_events_completed reaches block->decelerate_after after which it decelerates until final_rate is reached.
 //  The slope of acceleration is always +/- block->rate_delta and is applied at a constant rate following the midpoint rule.
 //  Speed adjustments are made ACCELERATION_TICKS_PER_SECOND times per second.
 
+// prototypes for static functions (non-accesible from other files)
+static bool acceleration_tick();
 static void adjust_speed( uint32_t steps_per_minute );
-void st_pulse_handler();
-
+static uint32_t config_step_timer(uint32_t cycles);
 
 
 // Initialize and start the stepper motor subsystem
@@ -100,7 +103,7 @@ void st_init() {
   TCCR2B = 0; // Disable timer until needed.
   TIMSK2 |= (1<<TOIE2); // Enable Timer2 interrupt flag
   
-  set_step_events_per_minute(MINIMUM_STEPS_PER_MINUTE);
+  adjust_speed(MINIMUM_STEPS_PER_MINUTE);
   clear_vector(st_position);
   acceleration_tick_counter = 0;
   current_block = NULL;
@@ -129,6 +132,7 @@ void st_wake_up() {
     out_bits = (0) ^ (settings.invert_mask);
     // Enable stepper driver interrupt
     TIMSK1 |= (1<<OCIE1A);
+  }
 }
 
 
@@ -163,7 +167,7 @@ static bool acceleration_tick() {
 // they execute right before this interrupt. Not a big deal, but could use some TLC at some point.
 ISR(TIMER2_OVF_vect) {
   // reset step pins
-  STEPPING_PORT = (STEPPING_PORT & ~STEP_MASK) | (settings.invert_mask & STEP_MASK);
+  STEPPING_PORT = (STEPPING_PORT & ~STEPPING_MASK) | (settings.invert_mask & STEPPING_MASK);
   TCCR2B = 0; // Disable Timer2 to prevent re-entering this interrupt when it's not needed. 
 }
   
@@ -178,10 +182,10 @@ ISR(TIMER1_COMPA_vect) {
   // Set the direction pins a couple of nanoseconds before we step the steppers
   STEPPING_PORT = (STEPPING_PORT & ~DIRECTION_MASK) | (out_bits & DIRECTION_MASK);
   // Then pulse the stepping pins
-  STEPPING_PORT = (STEPPING_PORT & ~STEP_MASK) | out_bits;
+  STEPPING_PORT = (STEPPING_PORT & ~STEPPING_MASK) | out_bits;
   // Enable step pulse reset timer so that The Stepper Port Reset Interrupt can reset the signal after
   // exactly settings.pulse_microseconds microseconds, independent of the main Timer1 prescaler.
-  TCNT2 = -(((settings.pulse_microseconds-2)*TICKS_PER_MICROSECOND) >> 3); // Reload timer counter
+  TCNT2 = -(((settings.pulse_microseconds-2)*CYCLES_PER_MICROSECOND) >> 3); // Reload timer counter
   TCCR2B = (1<<CS21); // Begin timer2. Full speed, 1/8 prescaler
 
   busy = true;
@@ -370,7 +374,7 @@ static uint32_t config_step_timer(uint32_t cycles) {
 
 void adjust_speed( uint32_t steps_per_minute ) {
   if (steps_per_minute < MINIMUM_STEPS_PER_MINUTE) { steps_per_minute = MINIMUM_STEPS_PER_MINUTE; }
-  cycles_per_step_event = config_step_timer((TICKS_PER_MICROSECOND*1000000*60)/steps_per_minute);
+  cycles_per_step_event = config_step_timer((CYCLES_PER_MICROSECOND*1000000*60)/steps_per_minute);
 
   // run at constant intensity for now
   set_laser_intensity(current_block->nominal_laser_intensity);

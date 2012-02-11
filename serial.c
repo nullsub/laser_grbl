@@ -26,6 +26,7 @@
 #include <math.h>
 #include <avr/pgmspace.h>
 #include "serial.h"
+#include "config.h"
 
 
 #define RX_BUFFER_SIZE 192
@@ -51,8 +52,8 @@ static void set_baud_rate(long baud) {
 	UBRR0L = UBRR0_value;
 }
 
-void serial_init(long baud) {
-  set_baud_rate(baud);
+void serial_init() {
+  set_baud_rate(BAUD_RATE);
   
 	/* baud doubler off  - Only needed on Uno XXX */
   UCSR0A &= ~(1 << U2X0);
@@ -70,7 +71,7 @@ void serial_init(long baud) {
 	xon_flag = 1;
 	UCSR0B |=  (1 << UDRIE0);  // enable tx interrupt
 	
-  printPgmString(PSTR("\r\nLasaurGrbl " GRBL_VERSION));
+  printPgmString(PSTR("\r\nLasaurGrbl " LASAURGRBL_VERSION));
   printPgmString(PSTR("\r\n")); 	
 }
 

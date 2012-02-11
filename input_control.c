@@ -89,9 +89,9 @@ static void homing_cycle(bool x_axis, bool y_axis, bool z_axis, bool reverse_dir
  //   }
     if(x_axis || y_axis || z_axis) {
         // step all axes still in out_bits
-        STEPPING_PORT |= out_bits & STEP_MASK;
+        STEPPING_PORT |= out_bits & STEPPING_MASK;
         _delay_us(settings.pulse_microseconds);
-        STEPPING_PORT ^= out_bits & STEP_MASK;
+        STEPPING_PORT ^= out_bits & STEPPING_MASK;
         _delay_us(step_delay);
     } else { 
         return;

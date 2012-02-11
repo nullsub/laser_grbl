@@ -25,11 +25,10 @@
 #include <math.h>
 #include <stdlib.h>
 #include <util/delay.h>
+#include <string.h>
 
 #include "planner.h"
-#include "nuts_bolts.h"
 #include "stepper.h"
-#include "settings.h"
 #include "config.h"
 
 
@@ -83,15 +82,16 @@ block_t *plan_get_current_block() {
 
 
 
-//            target rate -> +
-//                          /|
-//                         / |                 
-//                        /  |   
-//                       /   |
-//      initial rate -> +----+           
-//                           ^                   
-//                           |                   
-//                       DISTANCE
+/*            target rate -> +
+**                          /|
+**                         / |                 
+**                        /  |   
+**                       /   |
+**      initial rate -> +----+           
+**                           ^                   
+**                           |                   
+**                       DISTANCE 
+*/
 // Calculates the distance (not time) it takes to accelerate from initial_rate to target_rate
 static double estimate_acceleration_distance(double initial_rate, double target_rate, double acceleration) {
   return( (target_rate*target_rate-initial_rate*initial_rate)/(2*acceleration) );
@@ -99,15 +99,16 @@ static double estimate_acceleration_distance(double initial_rate, double target_
 
 
 
-//                        + <- some maximum rate we don't care about
-//                       /|\
-//                      / | \                    
-//                     /  |  + <- final_rate     
-//                    /   |  |                   
-//   initial_rate -> +----+--+                   
-//                        ^  ^                   
-//                        |  |                   
-//    INTERSECTION_DISTANCE  distance
+/*                        + <- some maximum rate we don't care about
+**                       /|\
+**                      / | \                    
+**                     /  |  + <- final_rate     
+**                    /   |  |                   
+**   initial_rate -> +----+--+                   
+**                        ^  ^                   
+**                        |  |                   
+**    INTERSECTION_DISTANCE  distance
+*/
 // This function gives you the point at which you must start braking (at the rate of -acceleration) if 
 // you started at speed initial_rate and accelerated until this point and want to end at the final_rate after
 // a total travel of distance. This can be used to compute the intersection point between acceleration and
@@ -118,15 +119,16 @@ static double intersection_distance(double initial_rate, double final_rate, doub
 
             
 
-//                      + <- MAX_ALLOWABLE_SPEED
-//                      |\
-//                      | \                    
-//                      |  \    
-//                      |   \                  
-//                      +----+ <- target velocity            
-//                           ^                   
-//                           |                   
-//                       distance 
+/*                      + <- MAX_ALLOWABLE_SPEED
+**                      |\
+**                      | \                    
+**                      |  \    
+**                      |   \                  
+**                      +----+ <- target velocity            
+**                           ^                   
+**                           |                   
+**                       distance 
+*/
 // Calculate the beginning speed that results in target_velocity when accelerated over given distance.
 static double max_allowable_speed(double acceleration, double target_velocity, double distance) {
   return( sqrt(target_velocity*target_velocity-2*acceleration*distance) );
@@ -137,16 +139,16 @@ static double max_allowable_speed(double acceleration, double target_velocity, d
 
 
 
-//                                        
-//                                   +--------+   <- nominal_rate
-//                                  /|        |\                                
-//  nominal_rate*entry_factor ->   + |        | \                               
-//                                 | |        |  + <- nominal_rate*exit_factor  
-//                                 +-+--------+--+                              
-//                                   ^        ^
-//                                   |        |
-//                      accelerate_until    decelerate_after                           
-//                                                                              
+/*                                        
+**                                   +--------+   <- nominal_rate
+**                                  /|        |\                                
+**  nominal_rate*entry_factor ->   + |        | \                               
+**                                 | |        |  + <- nominal_rate*exit_factor  
+**                                 +-+--------+--+                              
+**                                   ^        ^
+**                                   |        |
+**                      accelerate_until    decelerate_after                           
+*/                                                                              
 // Calculates accelerate_until and decelerate_after.
 static void calculate_trapezoid_for_block(block_t *block, double entry_factor, double exit_factor) {
   block->initial_rate = ceil(block->nominal_rate * entry_factor);  // (step/min)
@@ -409,6 +411,21 @@ void plan_buffer_line(double x, double y, double z, double feed_rate, int nomina
 
   // make sure the stepper interrupt is processing
   st_wake_up();
+}
+
+
+
+void plan_buffer_dwell(double seconds, int nominal_laser_intensity) {
+// // Execute dwell in seconds. Maximum time delay is > 18 hours, more than enough for any application.
+// void mc_dwell(double seconds) {
+//    uint16_t i = floor(seconds);
+//    st_synchronize();
+//    _delay_ms(floor(1000*(seconds-i))); // Delay millisecond remainder
+//    while (i > 0) {
+//      _delay_ms(1000); // Delay one second
+//      i--;
+//    }
+// }  
 }
 
 

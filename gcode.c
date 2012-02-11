@@ -21,9 +21,12 @@ GNU General Public License for more details.
 #include <string.h>
 #include <math.h>
 #include "errno.h"
+#include <stdint.h>
+#include <stdlib.h>
 
 #include "gcode.h"
 #include "config.h"
+#include "serial.h"
 #include "input_control.h"
 #include "output_control.h"
 #include "stepper.h"
@@ -122,7 +125,7 @@ void gc_process_line() {
     if (numChars > 0) {           // Line is complete. Then execute!
         rx_line[numChars] = '\0';    // terminate string       
         if(rx_line[0] == '$') {
-            printPgmString(PSTR("\nLasaurGrbl " GRBL_VERSION));
+            printPgmString(PSTR("\nLasaurGrbl " LASAURGRBL_VERSION));
             printPgmString(PSTR("\nSee config.h for configuration.\n"));
             status_code = STATUS_OK;
         } else {
@@ -168,14 +171,13 @@ uint8_t gc_execute_line(char *line) {
   char letter;
   double value;
   double unit_converted_value;
-  uint8_t radius_mode = false;
   
   uint8_t absolute_override = false;          /* 1 = absolute motion for this block only {G53} */
   uint8_t next_action = NEXT_ACTION_DEFAULT;  /* The action that will be taken by the parsed line */
   
   double target[3], offset[3];  
   
-  double p = 0, r = 0;
+  double p = 0;
   int int_value;
 
   gc.status_code = STATUS_OK;
@@ -257,7 +259,7 @@ uint8_t gc_execute_line(char *line) {
   // Perform any physical actions
   switch (next_action) {
     case NEXT_ACTION_HOMING_CYCLE: mc_homing_cycle(); clear_vector(target); break;
-    case NEXT_ACTION_DWELL: mc_dwell(p); break;   
+    case NEXT_ACTION_DWELL: mc_dwell(p, gc.nominal_laser_intensity); break;   
     case NEXT_ACTION_SET_COORDINATE_OFFSET: 
     mc_set_current_position(target[X_AXIS], target[Y_AXIS], target[Z_AXIS]);
     break;
