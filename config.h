@@ -65,8 +65,8 @@
 #define LIMIT_MASK ((1<<X1_LIMIT_BIT)|(1<<X2_LIMIT_BIT)|(1<<Y1_LIMIT_BIT)|(1<<Y2_LIMIT_BIT))
 #define STEPPING_MASK ((1<<X_STEP_BIT)|(1<<Y_STEP_BIT)|(1<<Z_STEP_BIT))
 #define DIRECTION_MASK ((1<<X_DIRECTION_BIT)|(1<<Y_DIRECTION_BIT)|(1<<Z_DIRECTION_BIT))
-#define INVERT_MASK 24U  // 0x00011000 invert direction pin 3 and 4, (1<<X_DIRECTION_BIT) | (1<<Y_DIRECTION_BIT)
-// #define INVERT_MASK 24U  // typical forLin Engineering Steppers
+#define INVERT_MASK 0U  //(1<<X_DIRECTION_BIT) | (1<<Y_DIRECTION_BIT)
+// #define INVERT_MASK 24U  // typical forLin Engineering Steppers, 0x00011000 invert direction pin 3 and 4
 // #define INVERT_MASK 0U   // typical for Nanotec Steppers
 
 #define CONFIG_X_STEPS_PER_MM 32.80839895 //microsteps/mm
