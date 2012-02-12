@@ -259,7 +259,7 @@ void planner_reset_block_buffer() {
 
 
 // Reset the planner position vector and planner speed
-void planner_set_current_position(double x, double y, double z) {
+void planner_set_position(double x, double y, double z) {
   position[X_AXIS] = floor(x*CONFIG_X_STEPS_PER_MM + 0.5);
   position[Y_AXIS] = floor(y*CONFIG_Y_STEPS_PER_MM + 0.5);
   position[Z_AXIS] = floor(z*CONFIG_Z_STEPS_PER_MM + 0.5);    

@@ -162,6 +162,13 @@ double stepper_get_position_y() {
 double stepper_get_position_z() {
   return stepper_position[Z_AXIS]/CONFIG_Z_STEPS_PER_MM;
 }
+void stepper_set_position(double x, double y, double z) {
+  stepper_synchronize();  // wait until processing is done
+  stepper_position[X_AXIS] = floor(x*CONFIG_X_STEPS_PER_MM + 0.5);
+  stepper_position[Y_AXIS] = floor(y*CONFIG_Y_STEPS_PER_MM + 0.5);
+  stepper_position[Z_AXIS] = floor(z*CONFIG_Z_STEPS_PER_MM + 0.5);  
+}
+
 
 
 

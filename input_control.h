@@ -29,7 +29,7 @@ void limits_homing_cycle();
 
 // dis/enable if controller can still 
 // move while a limit switch is triggering
-void limit_overwrite_enable();
-void limit_overwrite_disable();
+void limits_overwrite_enable();
+void limits_overwrite_disable();
 
 #endif

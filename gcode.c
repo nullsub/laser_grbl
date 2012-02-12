@@ -63,8 +63,8 @@ typedef struct {
   double feed_rate;                // mm/min {F}
   double seek_rate;                // mm/min {F}
   double position[3];              // projected position once all scheduled motions will have been executed
-  double cs_offsets[9];             // coord offsets for {G54_X,G54_Y,G54_Z,G55_X,G55_Y,G55_Z,G56_X,G56_Y,G56_Z}
-  uint8_t current_cs;              // currently active coordinate system, 0 -> G54, 1 -> G55, 2 -> G56
+  double cs_offsets[6];            // coord offsets for {G54_X,G54_Y,G54_Z,G55_X,G55_Y,G55_Z}
+  uint8_t current_cs;              // currently active coordinate system, 0 -> G54, 1 -> G55
   uint8_t nominal_laser_intensity; // 0-255 percentage
 } parser_state_t;
 static parser_state_t gc;
@@ -80,6 +80,16 @@ void gcode_init() {
   gc.seek_rate = CONFIG_SEEKRATE;
   gc.absolute_mode = true;
   gc.nominal_laser_intensity = 0U;   
+  gc.current_cs = 0;  // default to G54 coordinate system
+  // prime G54 cs, refine with "G10 L2 P1 X_ Y_ Z_"
+  gc.cs_offsets[X_AXIS] = CONFIG_X_ORIGIN_OFFSET;
+  gc.cs_offsets[Y_AXIS] = CONFIG_Y_ORIGIN_OFFSET;
+  gc.cs_offsets[Z_AXIS] = CONFIG_Z_ORIGIN_OFFSET;
+  // prime G55 cs, refine with "G10 L2 P2 X_ Y_ Z_"
+  // or set to any current location with "G10 L20 P2"
+  gc.cs_offsets[3+X_AXIS] = CONFIG_X_ORIGIN_OFFSET;
+  gc.cs_offsets[3+Y_AXIS] = CONFIG_Y_ORIGIN_OFFSET;
+  gc.cs_offsets[3+Z_AXIS] = CONFIG_Z_ORIGIN_OFFSET;  
 }
 
 
@@ -190,7 +200,6 @@ uint8_t gcode_execute_line(char *line) {
           case 30: next_action = NEXT_ACTION_HOMING_CYCLE; break;
           case 54: gc.current_cs = 0; break;
           case 55: gc.current_cs = 1; break;
-          case 56: gc.current_cs = 2; break;
           case 90: gc.absolute_mode = true; break;
           case 91: gc.absolute_mode = false; break;
           default: FAIL(STATUS_UNSUPPORTED_STATEMENT);
@@ -262,10 +271,16 @@ uint8_t gcode_execute_line(char *line) {
   // Perform any physical actions
   switch (next_action) {
     case NEXT_ACTION_SEEK:
-      planner_line(target[X_AXIS], target[Y_AXIS], target[Z_AXIS], gc.seek_rate, 0);
+      planner_line( target[X_AXIS] + gc.cs_offsets[3*gc.current_cs+X_AXIS], 
+                    target[Y_AXIS] + gc.cs_offsets[3*gc.current_cs+Y_AXIS], 
+                    target[Z_AXIS] + gc.cs_offsets[3*gc.current_cs+Z_AXIS], 
+                    gc.seek_rate, 0 );
       break;   
     case NEXT_ACTION_FEED:
-      planner_line(target[X_AXIS], target[Y_AXIS], target[Z_AXIS], gc.feed_rate, gc.nominal_laser_intensity);
+      planner_line( target[X_AXIS] + gc.cs_offsets[3*gc.current_cs+X_AXIS], 
+                    target[Y_AXIS] + gc.cs_offsets[3*gc.current_cs+Y_AXIS], 
+                    target[Z_AXIS] + gc.cs_offsets[3*gc.current_cs+Z_AXIS], 
+                    gc.feed_rate, gc.nominal_laser_intensity );    
       break; 
     case NEXT_ACTION_DWELL:
       planner_dwell(p, gc.nominal_laser_intensity);
@@ -275,28 +290,42 @@ uint8_t gcode_execute_line(char *line) {
       gc.position[X_AXIS] = stepper_get_position_x();
       gc.position[Y_AXIS] = stepper_get_position_y();
       gc.position[Z_AXIS] = stepper_get_position_z();
-      planner_set_current_position(gc.position[X_AXIS], gc.position[Y_AXIS], gc.position[Z_AXIS]);
-      planner_line(0, 0, 0, gc.seek_rate, 0);
+      target[X_AXIS] = gc.position[X_AXIS];
+      target[Y_AXIS] = gc.position[Y_AXIS];
+      target[Z_AXIS] = gc.position[Z_AXIS];
+      planner_set_position(gc.position[X_AXIS], gc.position[Y_AXIS], gc.position[Z_AXIS]);
+      // move to table origin
+      target[X_AXIS] = 0;
+      target[Y_AXIS] = 0;
+      target[Z_AXIS] = 0;         
+      planner_line( target[X_AXIS] + gc.cs_offsets[3*gc.current_cs+X_AXIS], 
+                    target[Y_AXIS] + gc.cs_offsets[3*gc.current_cs+Y_AXIS], 
+                    target[Z_AXIS] + gc.cs_offsets[3*gc.current_cs+Z_AXIS], 
+                    gc.seek_rate, 0 );
       break;
     case NEXT_ACTION_HOMING_CYCLE:
       limits_homing_cycle();
+      // now that we are at the physical home
+      // zero all the position vectors
+      clear_vector(gc.position);
       clear_vector(target);
+      stepper_set_position(0.0, 0.0, 0.0);
+      planner_set_position(0.0, 0.0, 0.0);
       break;
     case NEXT_ACTION_SET_COORDINATE_OFFSET:
-      if (cs == 0 || cs == 1 || cs ==2) {  // corresponds to G54, G55, G56
+      if (cs == 0 || cs == 1) {  // corresponds to G54, G55
         if (l == 2) {
-          //set offset to target, eg: G10 L2 X10 Y10 Z0
+          //set offset to target, eg: G10 L2 P1 X10 Y10 Z0
           gc.cs_offsets[3*cs+X_AXIS] = target[X_AXIS];
           gc.cs_offsets[3*cs+Y_AXIS] = target[Y_AXIS];
           gc.cs_offsets[3*cs+Z_AXIS] = target[Z_AXIS];
         } else if (l == 20) {
-          // set offset to current pos, eg: G10 L20
+          // set offset to current pos, eg: G10 L20 P2
           gc.cs_offsets[3*cs+X_AXIS] = gc.position[X_AXIS];
           gc.cs_offsets[3*cs+Y_AXIS] = gc.position[X_AXIS];
           gc.cs_offsets[3*cs+Z_AXIS] = gc.position[X_AXIS];        
         }
       }
-      planner_set_current_position(target[X_AXIS], target[Y_AXIS], target[Z_AXIS]);
       break;
     case NEXT_ACTION_AIRGAS_DISABLE:
       planner_airgas_disable();
@@ -368,8 +397,4 @@ static int read_double(char *line, uint8_t *char_counter, double *double_ptr) {
   - Probing
   - Override control
 
-   group 0 = {G10, G28, G30, G92, G92.1, G92.2, G92.3} (Non modal G-codes)
-   group 9 = {M48, M49} enable/disable feed and speed override switches
-   group 12 = {G54, G55, G56, G57, G58, G59, G59.1, G59.2, G59.3} coordinate system selection
-   group 13 = {G61, G61.1, G64} path control mode
 */

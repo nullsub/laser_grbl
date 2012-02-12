@@ -51,5 +51,6 @@ void stepper_stop();
 double stepper_get_position_x();
 double stepper_get_position_y();
 double stepper_get_position_z();
+void stepper_set_position(double x, double y, double z);
 
 #endif

@@ -26,7 +26,7 @@
 #include "input_control.h"
 
 
-void limit_overwrite_disable();
+void limits_overwrite_disable();
 
 
 void limits_init() {
@@ -35,16 +35,16 @@ void limits_init() {
 
   // define as output pin
   LIMIT_OVERWRITE_DDR |= 1<<LIMIT_OVERWRITE_BIT;
-  limit_overwrite_disable();
+  limits_overwrite_disable();
 }
 
 
-void limit_overwrite_enable() {
+void limits_overwrite_enable() {
   // sinking the pin overwrites the limit stop hard logic
   LIMIT_OVERWRITE_PORT &= ~(1<<LIMIT_OVERWRITE_BIT);  
 }
 
-void limit_overwrite_disable() {
+void limits_overwrite_disable() {
   LIMIT_OVERWRITE_PORT |= (1<<LIMIT_OVERWRITE_BIT);  
 }
 
@@ -113,5 +113,4 @@ void limits_homing_cycle() {
   // home the x and y axis
   approach_limit_switch(true, true, false);
   leave_limit_switch(true, true, false);
-  planner_set_current_position(0,0,0);
 }

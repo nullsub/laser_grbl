@@ -93,6 +93,6 @@ void planner_reset_block_buffer();
 
 
 // Reset the position vector
-void planner_set_current_position(double x, double y, double z); 
+void planner_set_position(double x, double y, double z); 
 
 #endif
