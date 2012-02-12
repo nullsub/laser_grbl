@@ -73,6 +73,7 @@ static uint32_t acceleration_tick_counter;    // The cycles since last accelerat
 static uint32_t adjusted_rate;                // The current rate of step_events according to the speed profile
 static bool processing_flag;                  // indicates if blocks are being processed
 static volatile bool stop_requested;          // when set to true stepper interrupt will go idle on next entry
+static volatile bool pause_flag;              // makes the stepper ISR suspend processing
 
 
 // prototypes for static functions (non-accesible from other files)
@@ -108,6 +109,7 @@ void stepper_init() {
   acceleration_tick_counter = 0;
   current_block = NULL;
   stop_requested = false;
+  pause_flag = false;
   busy = false;
   
   // start in the idle state
@@ -150,6 +152,17 @@ void stepper_stop() {
   stop_requested = true;
 }
 
+void stepper_pause(bool enable) {
+  if (enable) {
+    pause_flag = true;
+  } else {
+    pause_flag = false;
+  }
+}
+
+bool stepper_is_paused() {
+  return pause_flag;
+}
 
 double stepper_get_position_x() {
   return stepper_position[X_AXIS]/CONFIG_X_STEPS_PER_MM;
@@ -188,11 +201,19 @@ ISR(TIMER2_OVF_vect) {
 ISR(TIMER1_COMPA_vect) {
   if (busy) { return; } // The busy-flag is used to avoid reentering this interrupt
   if (stop_requested) { stepper_go_idle(); stop_requested = false; }
+  if (pause_flag) { return; }  // simple suspend processing
   
   if (SENSE_ANY) {
     // no power (e-stop), no chiller, door open, limit switch situation
-    // pause operation
-    return;
+    if (SENSE_POWER || SENSE_CHILLER || SENSE_LIMITS) {
+      // stop program
+      stepper_stop();
+      return;
+    } else {
+      // door open
+      // pause operation, can be resumed by sending a resume char
+      stepper_pause(true);
+      return;
   }
   
   // pulse steppers

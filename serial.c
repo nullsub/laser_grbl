@@ -144,23 +144,30 @@ uint8_t serial_available() {
 
 SIGNAL(USART_RX_vect) {
 	uint8_t data = UDR0;
-	uint8_t next_head = rx_buffer_head + 1;
-	if (next_head == RX_BUFFER_SIZE) { next_head = 0; }
+	if (data == '\03') {  //CTRL-C
+	  // special stop character, bypass buffer
+    stepper_stop();
+	} else if (data == '\02') {  //CTRL-B
+	  // special resume character, bypass buffer
+    stepper_pause(false);
+	} else {
+  	uint8_t next_head = rx_buffer_head + 1;
+  	if (next_head == RX_BUFFER_SIZE) { next_head = 0; }
 
-  // Write data to buffer unless it is full.
-	if (next_head != rx_buffer_tail) {
-		rx_buffer[rx_buffer_head] = data;
-		rx_buffer_head = next_head;
-    rx_buffer_open_slots--;
+    // Write data to buffer unless it is full.
+  	if (next_head != rx_buffer_tail) {
+  		rx_buffer[rx_buffer_head] = data;
+  		rx_buffer_head = next_head;
+      rx_buffer_open_slots--;
     
-    if (xon_remote_state == 1) {  // generate flow control event
-      if (rx_buffer_open_slots <= RX_MIN_OPEN_SLOTS) {
-        xoff_flag = 1;
-      	UCSR0B |=  (1 << UDRIE0);  // Enable Data Register Empty Interrupt
-      }
-    }
-    
-	}
+      if (xon_remote_state == 1) {  // generate flow control event
+        if (rx_buffer_open_slots <= RX_MIN_OPEN_SLOTS) {
+          xoff_flag = 1;
+        	UCSR0B |=  (1 << UDRIE0);  // Enable Data Register Empty Interrupt
+        }
+      } 
+  	}
+  }
 }
 
 

@@ -45,6 +45,12 @@ void stepper_go_idle();
 // at the beginning of the stepper interrupt
 void stepper_stop();
 
+// pause/resume steppers until
+void stepper_pause(bool enable);
+
+// suspends a pause state
+bool stepper_is_paused();
+
 // Get the actual position of the head in mm.
 // This is as accurate as an open loop system can be.
 double stepper_get_position_x();
