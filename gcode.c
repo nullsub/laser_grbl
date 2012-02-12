@@ -1,21 +1,23 @@
 /*
-gcode.c - rs274/ngc parser.
-Part of LasaurGrbl
+  gcode.c - rs274/ngc parser.
+  Part of LasaurGrbl
 
-Copyright (c) 2009-2011 Simen Svale Skogsrud
-Copyright (c) 2011 Stefan Hechenberger
-Copyright (c) 2011 Sungeun K. Jeon
-Inspired by the Arduino GCode Interpreter by Mike Ellery and the
-NIST RS274/NGC Interpreter by Kramer, Proctor and Messina.
-LasaurGrbl is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
+  Copyright (c) 2009-2011 Simen Svale Skogsrud
+  Copyright (c) 2011 Stefan Hechenberger
+  Copyright (c) 2011 Sungeun K. Jeon
+  
+  Inspired by the Arduino GCode Interpreter by Mike Ellery and the
+  NIST RS274/NGC Interpreter by Kramer, Proctor and Messina.  
 
-LasaurGrbl is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-GNU General Public License for more details.
+  LasaurGrbl is free software: you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
+
+  LasaurGrbl is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License for more details.
 */
 
 #include <string.h>
@@ -26,10 +28,9 @@ GNU General Public License for more details.
 #include "gcode.h"
 #include "config.h"
 #include "serial.h"
-#include "input_control.h"
-#include "output_control.h"
+#include "io_control.h"
+#include "planner.h"
 #include "stepper.h"
-
 
 #define MM_PER_INCH (25.4)
 
@@ -303,7 +304,7 @@ uint8_t gcode_execute_line(char *line) {
                     gc.seek_rate, 0 );
       break;
     case NEXT_ACTION_HOMING_CYCLE:
-      limits_homing_cycle();
+      stepper_homing_cycle();
       // now that we are at the physical home
       // zero all the position vectors
       clear_vector(gc.position);
@@ -327,13 +328,13 @@ uint8_t gcode_execute_line(char *line) {
       }
       break;
     case NEXT_ACTION_AIRGAS_DISABLE:
-      planner_airgas_disable();
+      planner_control_airgas_disable();
       break;
     case NEXT_ACTION_AIR_ENABLE:
-      planner_air_enable();
+      planner_control_air_enable();
       break;
     case NEXT_ACTION_GAS_ENABLE:
-      planner_gas_enable();
+      planner_control_gas_enable();
       break;
   }
   

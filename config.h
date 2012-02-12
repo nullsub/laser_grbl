@@ -1,23 +1,20 @@
 /*
   config.h - compile time configuration
-  Part of Grbl
+  Part of LasaurGrbl
 
   Copyright (c) 2009-2011 Simen Svale Skogsrud
   Copyright (c) 2011 Sungeun K. Jeon
   Copyright (c) 2011 Stefan Hechenberger
 
-  Grbl is free software: you can redistribute it and/or modify
+  LasaurGrbl is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
   the Free Software Foundation, either version 3 of the License, or
   (at your option) any later version.
 
-  Grbl is distributed in the hope that it will be useful,
+  LasaurGrbl is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
   GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with Grbl.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 #ifndef config_h
@@ -31,9 +28,9 @@
 #define BAUD_RATE 9600
 
 
-#define LIMIT_OVERWRITE_DDR     DDRD
-#define LIMIT_OVERWRITE_PORT    PORTD
-#define LIMIT_OVERWRITE_BIT     7
+#define LIMITS_OVERWRITE_DDR     DDRD
+#define LIMITS_OVERWRITE_PORT    PORTD
+#define LIMITS_OVERWRITE_BIT     7
 
 #define SENSE_DDR               DDRD
 #define SENSE_PORT              PORTD
@@ -64,11 +61,13 @@
 #define Z_DIRECTION_BIT         5
 
 
+#define SENSE_MASK ((1<<POWER_BIT)|(1<<CHILLER_BIT)|(1<<DOOR_BIT))
 #define LIMIT_MASK ((1<<X1_LIMIT_BIT)|(1<<X2_LIMIT_BIT)|(1<<Y1_LIMIT_BIT)|(1<<Y2_LIMIT_BIT))
 #define STEPPING_MASK ((1<<X_STEP_BIT)|(1<<Y_STEP_BIT)|(1<<Z_STEP_BIT))
 #define DIRECTION_MASK ((1<<X_DIRECTION_BIT)|(1<<Y_DIRECTION_BIT)|(1<<Z_DIRECTION_BIT))
 #define INVERT_MASK 24U  // 0x00011000 invert direction pin 3 and 4, (1<<X_DIRECTION_BIT) | (1<<Y_DIRECTION_BIT)
-
+// #define INVERT_MASK 24U  // typical forLin Engineering Steppers
+// #define INVERT_MASK 0U   // typical for Nanotec Steppers
 
 #define CONFIG_X_STEPS_PER_MM 32.80839895 //microsteps/mm
 #define CONFIG_Y_STEPS_PER_MM 32.80839895 //microsteps/mm

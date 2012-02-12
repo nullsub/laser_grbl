@@ -7,7 +7,6 @@
   Copyright (c) 2011 Stefan Hechenberger
   Copyright (c) 2009-2011 Simen Svale Skogsrud
   Copyright (c) 2011 Sungeun K. Jeon
-  Copyright (c) 2011 Arthur Wolf
   
   Inspired by the 'RepRap cartesian firmware' by Zack Smith and 
   Philipp Tiefenbacher.
@@ -49,8 +48,7 @@
 #include "stepper.h"
 #include "config.h"
 #include "planner.h"
-#include "input_control.h"
-#include "output_control.h"
+#include "io_control.h"
 
 
 #define CYCLES_PER_MICROSECOND (F_CPU/1000000)  //16000000/1000000 = 16
@@ -144,7 +142,7 @@ void stepper_go_idle() {
   current_block = NULL;
   // Disable stepper driver interrupt
   TIMSK1 &= ~(1<<OCIE1A);
-  set_laser_intensity(0);
+  control_laser_intensity(0);
 }
 
 // stop processing command blocks on next ISR call
@@ -321,19 +319,20 @@ ISR(TIMER1_COMPA_vect) {
       break; 
 
     case TYPE_AIRGAS_DISABLE:
-      airgas_disable();
+      control_air(false);
+      control_gas(false);
       current_block = NULL;
       planner_discard_current_block();  
       break;
 
     case TYPE_AIR_ENABLE:
-      air_enable();
+      control_air(true);
       current_block = NULL;
       planner_discard_current_block();  
       break;
 
     case TYPE_GAS_ENABLE:
-      gas_enable();
+      control_gas(true);
       current_block = NULL;
       planner_discard_current_block();  
       break;      
@@ -404,9 +403,78 @@ static void adjust_speed( uint32_t steps_per_minute ) {
   cycles_per_step_event = config_step_timer((CYCLES_PER_MICROSECOND*1000000*60)/steps_per_minute);
 
   // run at constant intensity for now
-  set_laser_intensity(current_block->nominal_laser_intensity);
+  control_laser_intensity(current_block->nominal_laser_intensity);
 }
 
 
+
+
+
+static void homing_cycle(bool x_axis, bool y_axis, bool z_axis, bool reverse_direction, uint32_t microseconds_per_pulse) {
+  
+  uint32_t step_delay = microseconds_per_pulse - CONFIG_PULSE_MICROSECONDS;
+  uint8_t out_bits = DIRECTION_MASK;
+  uint8_t limit_bits;
+  
+  if (x_axis) { out_bits |= (1<<X_STEP_BIT); }
+  if (y_axis) { out_bits |= (1<<Y_STEP_BIT); }
+  if (z_axis) { out_bits |= (1<<Z_STEP_BIT); }
+  
+  // Invert direction bits if this is a reverse homing_cycle
+  if (reverse_direction) {
+    out_bits ^= DIRECTION_MASK;
+  }
+  
+  // Apply the global invert mask
+  out_bits ^= INVERT_MASK;
+  
+  // Set direction pins
+  STEPPING_PORT = (STEPPING_PORT & ~DIRECTION_MASK) | (out_bits & DIRECTION_MASK);
+  
+  for(;;) {
+    limit_bits = LIMIT_PIN;
+    if (reverse_direction) {         
+      // Invert limit_bits if this is a reverse homing_cycle
+      limit_bits ^= LIMIT_MASK;
+    }
+    if (x_axis && !(limit_bits & (1<<X1_LIMIT_BIT))) {
+      x_axis = false;
+      out_bits ^= (1<<X_STEP_BIT);      
+    }    
+    if (y_axis && !(limit_bits & (1<<Y1_LIMIT_BIT))) {
+      y_axis = false;
+      out_bits ^= (1<<Y_STEP_BIT);
+    }    
+ //   if (z_axis && !(limit_bits & (1<<Z1_LIMIT_BIT))) {
+ //     z_axis = false;
+ //     out_bits ^= (1<<Z_STEP_BIT);
+ //   }
+    if(x_axis || y_axis || z_axis) {
+        // step all axes still in out_bits
+        STEPPING_PORT |= out_bits & STEPPING_MASK;
+        _delay_us(CONFIG_PULSE_MICROSECONDS);
+        STEPPING_PORT ^= out_bits & STEPPING_MASK;
+        _delay_us(step_delay);
+    } else { 
+        return;
+    }
+  }
+  return;
+}
+
+static void approach_limit_switch(bool x, bool y, bool z) {
+  homing_cycle(x, y, z,false, 1000);
+}
+
+static void leave_limit_switch(bool x, bool y, bool z) {
+  homing_cycle(x, y, z, true, 100000);
+}
+
+void stepper_homing_cycle() {
+  stepper_synchronize();
+  // home the x and y axis
+  approach_limit_switch(true, true, false);
+  leave_limit_switch(true, true, false);
+}
 
 

@@ -7,7 +7,6 @@
   Copyright (c) 2011 Stefan Hechenberger
   Copyright (c) 2009-2011 Simen Svale Skogsrud
   Copyright (c) 2011 Sungeun K. Jeon
-  Copyright (c) 2011 Arthur Wolf
   
   Inspired by the 'RepRap cartesian firmware' by Zack Smith and 
   Philipp Tiefenbacher.
@@ -52,5 +51,8 @@ double stepper_get_position_x();
 double stepper_get_position_y();
 double stepper_get_position_z();
 void stepper_set_position(double x, double y, double z);
+
+// perform the homing cycle
+void stepper_homing_cycle();
 
 #endif

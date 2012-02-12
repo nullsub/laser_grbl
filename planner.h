@@ -1,23 +1,22 @@
 /*
-  planner.h - buffers movement commands and manages the acceleration profile plan
-  Part of Grbl
+  planner.c - buffers movement commands and manages the acceleration profile plan
+  Part of LasaurGrbl
 
   Copyright (c) 2009-2011 Simen Svale Skogsrud
-  Copyright (c) 2011 Sungeun K. Jeon  
+  Copyright (c) 2011 Sungeun K. Jeon
+  Copyright (c) 2011 Stefan Hechenberger
 
-  Grbl is free software: you can redistribute it and/or modify
+  LasaurGrbl is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
   the Free Software Foundation, either version 3 of the License, or
   (at your option) any later version.
 
-  Grbl is distributed in the hope that it will be useful,
+  LasaurGrbl is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
   GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with Grbl.  If not, see <http://www.gnu.org/licenses/>.
 */
+
 
 #ifndef planner_h
 #define planner_h
@@ -33,9 +32,9 @@
 #define TYPE_GAS_ENABLE 4
 
 #define planner_stop() planner_command(TYPE_STOP)
-#define planner_airgas_disable() planner_command(TYPE_AIRGAS_DISABLE)
-#define planner_air_enable() planner_command(TYPE_AIR_ENABLE)
-#define planner_gas_enable() planner_command(TYPE_GAS_ENABLE)
+#define planner_control_airgas_disable() planner_command(TYPE_AIRGAS_DISABLE)
+#define planner_control_air_enable() planner_command(TYPE_AIR_ENABLE)
+#define planner_control_gas_enable() planner_command(TYPE_GAS_ENABLE)
 
 
 // This struct is used when buffering the setup for each linear movement "nominal" values are as specified in 
