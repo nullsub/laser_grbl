@@ -23,6 +23,7 @@ mbed merger notes
   - inverse mode
   - plane selection, G17, G18, G19
   - arc support, G2, G3
+  - M112, use M2 instead
 
 - laser intensity, 255 or 1.0
 - trunc() function in gcode parser
