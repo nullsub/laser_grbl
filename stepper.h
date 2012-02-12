@@ -27,6 +27,7 @@
 
 #include <avr/io.h>
 #include <avr/sleep.h>
+#include <stdbool.h>
 
 
 // Initialize and start the stepper motor subsystem
@@ -43,13 +44,9 @@ void stepper_go_idle();
 
 // makes sure steppers are forced stepper_go_idle()
 // at the beginning of the stepper interrupt
-void stepper_stop();
-
-// pause/resume steppers until
-void stepper_pause(bool enable);
-
-// suspends a pause state
-bool stepper_is_paused();
+void stepper_request_stop();
+bool stepper_stop_requested();
+void stepper_resume();
 
 // Get the actual position of the head in mm.
 // This is as accurate as an open loop system can be.

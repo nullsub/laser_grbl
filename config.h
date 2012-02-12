@@ -105,6 +105,10 @@
 #define MINIMUM_STEPS_PER_MINUTE 1600U // (steps/min) - Integer value only
 // 1600 @ 32step_per_mm = 50mm/min
 
+#define CHAR_XOFF   '\x13'
+#define CHAR_XON    '\x11'
+#define CHAR_STOP   '\x03'
+#define CHAR_RESUME '\x02'
 
 #define X_AXIS 0
 #define Y_AXIS 1

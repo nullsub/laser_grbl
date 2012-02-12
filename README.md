@@ -55,4 +55,12 @@ Coordinate Systems
   - use G10 L2 P2 X10 Y10 to set a standard offset from the home, associated with the G55 coords
   - use G10 L20 P3 (or G10 L2 P3 X__ Y1__) to set a temporary origin, associated with G56
   
+stop, pause, resume
+--------------------
+stop on: power, chiller, limit, \03 control char
+stop resume on: \02 control char
+pause on: door, resume on door close
+
+
+
 

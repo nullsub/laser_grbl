@@ -35,4 +35,8 @@ void gcode_process_line();
 // Execute one block of rs275/ngc/g-code
 uint8_t gcode_execute_line(char *line);
 
+// update to stepper position when steppers have been stopped
+// called from the stepper code that executes the stop
+void gcode_request_position_update();
+
 #endif

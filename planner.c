@@ -35,6 +35,7 @@ static volatile uint8_t block_buffer_head;       // index of the next block to b
 static volatile uint8_t block_buffer_tail;       // index of the block to process now
 
 static int32_t position[3];             // The current position of the tool in absolute steps
+static volatile bool position_update_requested;  // make sure to update to stepper position on next occasion
 static double previous_unit_vec[3];     // Unit vector of previous path line segment
 static double previous_nominal_speed;   // Nominal speed of previous path line segment
 
@@ -55,6 +56,7 @@ void planner_init() {
   block_buffer_head = 0;
   block_buffer_tail = 0;
   clear_vector(position);
+  position_update_requested = false;
   clear_vector_double(previous_unit_vec);
   previous_nominal_speed = 0.0;
 }
@@ -63,7 +65,7 @@ void planner_init() {
 
 // Add a new linear movement to the buffer. x, y and z is 
 // the signed, absolute target position in millimeters. Feed rate specifies the speed of the motion.
-void planner_line(double x, double y, double z, double feed_rate, uint8_t nominal_laser_intensity) {
+void planner_line(double x, double y, double z, double feed_rate, uint8_t nominal_laser_intensity) {    
   // calculate target position in absolute steps
   int32_t target[3];
   target[X_AXIS] = floor(x*CONFIG_X_STEPS_PER_MM + 0.5);
@@ -75,6 +77,12 @@ void planner_line(double x, double y, double z, double feed_rate, uint8_t nomina
   while(block_buffer_tail == next_buffer_head) {  // buffer full condition
     // good! We are well ahead of the robot. Rest here until buffer has room.
     sleep_mode();
+  }
+  
+  // handle position update after a stop
+  if (position_update_requested) {
+    planner_set_position(stepper_get_position_x(), stepper_get_position_y(), stepper_get_position_z());
+    position_update_requested = false;
   }
   
   // prepare to set up new block
@@ -201,32 +209,24 @@ void planner_dwell(double seconds, uint8_t nominal_laser_intensity) {
 
 
 void planner_command(uint8_t type) {
-  if (type == TYPE_STOP) {
-    // discard all blocks in the buffer
-    // and request the steppers to stop
-    planner_reset_block_buffer();
-    stepper_stop();
-  } else {
-    
-    // calculate the buffer head and check for space
-    int next_buffer_head = next_block_index( block_buffer_head );	
-    while(block_buffer_tail == next_buffer_head) {  // buffer full condition
-      // good! We are well ahead of the robot. Rest here until buffer has room.
-      sleep_mode();
-    }    
-    
-    // Prepare to set up new block
-    block_t *block = &block_buffer[block_buffer_head];
-  
-    // set block type command
-    block->type = type;
-  
-    // Move buffer head
-    block_buffer_head = next_buffer_head;
+  // calculate the buffer head and check for space
+  int next_buffer_head = next_block_index( block_buffer_head );	
+  while(block_buffer_tail == next_buffer_head) {  // buffer full condition
+    // good! We are well ahead of the robot. Rest here until buffer has room.
+    sleep_mode();
+  }    
 
-    // make sure the stepper interrupt is processing  
-    stepper_wake_up();
-  }
+  // Prepare to set up new block
+  block_t *block = &block_buffer[block_buffer_head];
+
+  // set block type command
+  block->type = type;
+
+  // Move buffer head
+  block_buffer_head = next_buffer_head;
+
+  // make sure the stepper interrupt is processing  
+  stepper_wake_up();
 }
 
 
@@ -263,6 +263,9 @@ void planner_set_position(double x, double y, double z) {
   clear_vector_double(previous_unit_vec);
 }
 
+void planner_request_position_update() {
+  position_update_requested = true;
+}
 
 
 

@@ -38,18 +38,18 @@
 #define NEXT_ACTION_SEEK 1 
 #define NEXT_ACTION_FEED 2
 #define NEXT_ACTION_DWELL 3
-#define NEXT_ACTION_STOP 4
-#define NEXT_ACTION_HOMING_CYCLE 5
-#define NEXT_ACTION_SET_COORDINATE_OFFSET 6
-#define NEXT_ACTION_AIRGAS_DISABLE 7
-#define NEXT_ACTION_AIR_ENABLE 8
-#define NEXT_ACTION_GAS_ENABLE 9
+#define NEXT_ACTION_HOMING_CYCLE 4
+#define NEXT_ACTION_SET_COORDINATE_OFFSET 5
+#define NEXT_ACTION_AIRGAS_DISABLE 6
+#define NEXT_ACTION_AIR_ENABLE 7
+#define NEXT_ACTION_GAS_ENABLE 8
 
 #define STATUS_OK 0
 #define STATUS_BAD_NUMBER_FORMAT 1
 #define STATUS_EXPECTED_COMMAND_LETTER 2
 #define STATUS_UNSUPPORTED_STATEMENT 3
 #define STATUS_FLOATING_POINT_ERROR 4
+#define STATUS_STOP_STATE_ERROR 5
 
 #define BUFFER_LINE_SIZE 80
 char rx_line[BUFFER_LINE_SIZE];
@@ -69,6 +69,8 @@ typedef struct {
   uint8_t nominal_laser_intensity; // 0-255 percentage
 } parser_state_t;
 static parser_state_t gc;
+
+static volatile bool position_update_requested;  // make sure to update to stepper position on next occasion
 
 // prototypes for static functions (non-accesible from other files)
 static int next_statement(char *letter, double *double_ptr, char *line, uint8_t *char_counter);
@@ -92,7 +94,8 @@ void gcode_init() {
   // or set to any current location with "G10 L20 P2"
   gc.offsets[3+X_AXIS] = CONFIG_X_ORIGIN_OFFSET;
   gc.offsets[3+Y_AXIS] = CONFIG_Y_ORIGIN_OFFSET;
-  gc.offsets[3+Z_AXIS] = CONFIG_Z_ORIGIN_OFFSET;  
+  gc.offsets[3+Z_AXIS] = CONFIG_Z_ORIGIN_OFFSET;
+  position_update_requested = false;
 }
 
 
@@ -128,8 +131,19 @@ void gcode_process_line() {
   
   //// process line
   if (numChars > 0) {          // Line is complete. Then execute!
-    rx_line[numChars] = '\0';  // terminate string     
-    if (rx_line[0] == '$') {
+    rx_line[numChars] = '\0';  // terminate string
+    
+    // handle position update after a stop
+    if (position_update_requested) {
+      gc.position[X_AXIS] = stepper_get_position_x();
+      gc.position[Y_AXIS] = stepper_get_position_y();
+      gc.position[Z_AXIS] = stepper_get_position_z();
+      position_update_requested = false;
+    }
+    
+    if (stepper_stop_requested()) {
+      status_code = STATUS_STOP_STATE_ERROR;
+    } else if (rx_line[0] == '$') {
       printPgmString(PSTR("\nLasaurGrbl " LASAURGRBL_VERSION));
       printPgmString(PSTR("\nSee config.h for configuration.\n"));
       status_code = STATUS_OK;
@@ -155,17 +169,19 @@ void gcode_process_line() {
   } else {
     switch(status_code) {      
       case STATUS_BAD_NUMBER_FORMAT:
-      printPgmString(PSTR("Error: Bad number format\n")); break;
+        printPgmString(PSTR("Error: Bad number format\n")); break;
       case STATUS_EXPECTED_COMMAND_LETTER:
-      printPgmString(PSTR("Error: Expected command letter\n")); break;
+        printPgmString(PSTR("Error: Expected command letter\n")); break;
       case STATUS_UNSUPPORTED_STATEMENT:
-      printPgmString(PSTR("Error: Unsupported statement\n")); break;
+        printPgmString(PSTR("Error: Unsupported statement\n")); break;
       case STATUS_FLOATING_POINT_ERROR:
-      printPgmString(PSTR("Error: Floating point error\n")); break;
+        printPgmString(PSTR("Error: Floating point error\n")); break;
+      case STATUS_STOP_STATE_ERROR:
+        printPgmString(PSTR("Error: Stopped\n")); break;
       default:
-      printPgmString(PSTR("Error: "));
-      printInteger(status_code);
-      printPgmString(PSTR("\n"));        
+        printPgmString(PSTR("Error: "));
+        printInteger(status_code);
+        printPgmString(PSTR("\n"));        
     }
   }   
 }
@@ -187,8 +203,8 @@ uint8_t gcode_execute_line(char *line) {
   int cs = 0;
   int l = 0;
   gc.status_code = STATUS_OK;
-  
-  // Pass 1: Commands
+    
+  //// Pass 1: Commands
   while(next_statement(&letter, &value, line, &char_counter)) {
     int_value = trunc(value);
     switch(letter) {
@@ -210,7 +226,6 @@ uint8_t gcode_execute_line(char *line) {
         break;
       case 'M':
         switch(int_value) {
-          case 2: next_action = NEXT_ACTION_STOP; break;
           case 7: next_action = NEXT_ACTION_AIR_ENABLE;break;
           case 8: next_action = NEXT_ACTION_GAS_ENABLE;break;
           case 9: next_action = NEXT_ACTION_AIRGAS_DISABLE;break;
@@ -229,7 +244,7 @@ uint8_t gcode_execute_line(char *line) {
   clear_vector(offset);
   memcpy(target, gc.position, sizeof(target)); // i.e. target = gc.position
 
-  // Pass 2: Parameters
+  //// Pass 2: Parameters
   while(next_statement(&letter, &value, line, &char_counter)) {
     if (gc.inches_mode) {
       unit_converted_value = value * MM_PER_INCH;
@@ -271,7 +286,7 @@ uint8_t gcode_execute_line(char *line) {
   // bail when error
   if (gc.status_code) { return(gc.status_code); }
       
-  // Perform any physical actions
+  //// Perform any physical actions
   switch (next_action) {
     case NEXT_ACTION_SEEK:
       planner_line( target[X_AXIS] + gc.offsets[3*gc.offselect+X_AXIS], 
@@ -288,21 +303,21 @@ uint8_t gcode_execute_line(char *line) {
     case NEXT_ACTION_DWELL:
       planner_dwell(p, gc.nominal_laser_intensity);
       break;
-    case NEXT_ACTION_STOP:
-      planner_stop();  // stop and cancel the remaining program
-      gc.position[X_AXIS] = stepper_get_position_x();
-      gc.position[Y_AXIS] = stepper_get_position_y();
-      gc.position[Z_AXIS] = stepper_get_position_z();
-      planner_set_position(gc.position[X_AXIS], gc.position[Y_AXIS], gc.position[Z_AXIS]);
-      // move to table origin
-      target[X_AXIS] = 0;
-      target[Y_AXIS] = 0;
-      target[Z_AXIS] = 0;         
-      planner_line( target[X_AXIS] + gc.offsets[3*gc.offselect+X_AXIS], 
-                    target[Y_AXIS] + gc.offsets[3*gc.offselect+Y_AXIS], 
-                    target[Z_AXIS] + gc.offsets[3*gc.offselect+Z_AXIS], 
-                    gc.seek_rate, 0 );
-      break;
+    // case NEXT_ACTION_STOP:
+    //   planner_stop();  // stop and cancel the remaining program
+    //   gc.position[X_AXIS] = stepper_get_position_x();
+    //   gc.position[Y_AXIS] = stepper_get_position_y();
+    //   gc.position[Z_AXIS] = stepper_get_position_z();
+    //   planner_set_position(gc.position[X_AXIS], gc.position[Y_AXIS], gc.position[Z_AXIS]);
+    //   // move to table origin
+    //   target[X_AXIS] = 0;
+    //   target[Y_AXIS] = 0;
+    //   target[Z_AXIS] = 0;         
+    //   planner_line( target[X_AXIS] + gc.offsets[3*gc.offselect+X_AXIS], 
+    //                 target[Y_AXIS] + gc.offsets[3*gc.offselect+Y_AXIS], 
+    //                 target[Z_AXIS] + gc.offsets[3*gc.offselect+Z_AXIS], 
+    //                 gc.seek_rate, 0 );
+    //   break;
     case NEXT_ACTION_HOMING_CYCLE:
       stepper_homing_cycle();
       // now that we are at the physical home
@@ -343,6 +358,11 @@ uint8_t gcode_execute_line(char *line) {
   // in any intermediate location.
   memcpy(gc.position, target, sizeof(double)*3); // gc.position[] = target[];
   return gc.status_code;
+}
+
+
+void gcode_request_position_update() {
+  position_update_requested = true;
 }
 
 

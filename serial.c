@@ -26,6 +26,7 @@
 #include <avr/pgmspace.h>
 #include "serial.h"
 #include "config.h"
+#include "stepper.h"
 
 
 #define RX_BUFFER_SIZE 192
@@ -96,11 +97,11 @@ SIGNAL(USART_UDRE_vect) {
   uint8_t tail = tx_buffer_tail;
   
   if (xoff_flag) {
-    UDR0 = '\x13';  //send XOFF
+    UDR0 = CHAR_XOFF;  //send XOFF
     xoff_flag = 0;
     xon_remote_state = 0;
   } else if (xon_flag) {
-    UDR0 = '\x11';  //send XON
+    UDR0 = CHAR_XON;  //send XON
     xon_flag = 0;
     xon_remote_state = 1;
   } else {
@@ -144,12 +145,12 @@ uint8_t serial_available() {
 
 SIGNAL(USART_RX_vect) {
 	uint8_t data = UDR0;
-	if (data == '\03') {  //CTRL-C
+	if (data == CHAR_STOP) {
 	  // special stop character, bypass buffer
-    stepper_stop();
-	} else if (data == '\02') {  //CTRL-B
+    stepper_request_stop();
+	} else if (data == CHAR_RESUME) {
 	  // special resume character, bypass buffer
-    stepper_pause(false);
+    stepper_resume();
 	} else {
   	uint8_t next_head = rx_buffer_head + 1;
   	if (next_head == RX_BUFFER_SIZE) { next_head = 0; }
