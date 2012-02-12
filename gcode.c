@@ -28,7 +28,7 @@
 #include "gcode.h"
 #include "config.h"
 #include "serial.h"
-#include "io_control.h"
+#include "sense_control.h"
 #include "planner.h"
 #include "stepper.h"
 

@@ -1,5 +1,5 @@
 /*
-  io_control.h - controlling sensors and actuators
+  sense_control.h - sensing and controlling inputs and outputs
   Part of LasaurGrbl
 
   Copyright (c) 2011 Stefan Hechenberger
@@ -15,8 +15,8 @@
   GNU General Public License for more details.
 */
 
-#ifndef io_control_h
-#define io_control_h
+#ifndef sense_control_h
+#define sense_control_h
 
 #include <stdbool.h>
 

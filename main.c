@@ -22,7 +22,7 @@
 #include "config.h"
 #include "planner.h"
 #include "stepper.h"
-#include "io_control.h"
+#include "sense_control.h"
 #include "gcode.h"
 #include "serial.h"
 

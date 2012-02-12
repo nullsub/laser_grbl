@@ -1,5 +1,5 @@
 /*
-  io_control.h - controlling sensors and actuators
+  sense_control.h - sensing and controlling inputs and outputs
   Part of LasaurGrbl
 
   Copyright (c) 2011 Stefan Hechenberger
@@ -19,7 +19,7 @@
 #include <util/delay.h>
 #include <math.h>
 #include <stdlib.h>
-#include "io_control.h"
+#include "sense_control.h"
 #include "stepper.h"
 #include "planner.h"
 
@@ -57,7 +57,7 @@ void control_init() {
   
   //// limits overwrite control
   LIMITS_OVERWRITE_DDR |= 1<<LIMITS_OVERWRITE_BIT;  // define as output pin
-  control_limits_overwrite(false);    
+  control_limits_overwrite(true);  // do not use hardware logic to stop steppers    
 }
 
 
