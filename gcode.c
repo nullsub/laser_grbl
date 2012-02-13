@@ -296,7 +296,6 @@ uint8_t gcode_execute_line(char *line) {
                     gc.seek_rate, 0 );
       break;   
     case NEXT_ACTION_FEED:
-      printString("x: "); printFloat(target[X_AXIS] + gc.offsets[3*gc.offselect+X_AXIS]); printString("\n");
       planner_line( target[X_AXIS] + gc.offsets[3*gc.offselect+X_AXIS], 
                     target[Y_AXIS] + gc.offsets[3*gc.offselect+Y_AXIS], 
                     target[Z_AXIS] + gc.offsets[3*gc.offselect+Z_AXIS], 

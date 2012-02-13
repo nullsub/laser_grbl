@@ -254,7 +254,6 @@ ISR(TIMER1_COMPA_vect) {
       counter_y = counter_x;
       counter_z = counter_x;
       step_events_completed = 0;
-      printInteger((current_block->direction_bits >> X_DIRECTION_BIT) & 1); printString(":"); printInteger((current_block->direction_bits >> Y_DIRECTION_BIT) & 1); printString("\n");
     }
   }
 
