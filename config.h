@@ -34,6 +34,7 @@
 
 #define SENSE_DDR               DDRD
 #define SENSE_PORT              PORTD
+#define SENSE_PIN               PIND
 #define POWER_BIT               2
 #define CHILLER_BIT             3
 #define DOOR_BIT                5
@@ -107,8 +108,10 @@
 
 #define CHAR_XOFF   '\x13'
 #define CHAR_XON    '\x11'
-#define CHAR_STOP   '\x03'
-#define CHAR_RESUME '\x02'
+// #define CHAR_STOP   '\x03'
+// #define CHAR_RESUME '\x02'
+#define CHAR_STOP   '!'
+#define CHAR_RESUME '~'
 
 #define X_AXIS 0
 #define Y_AXIS 1

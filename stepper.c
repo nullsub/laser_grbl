@@ -210,14 +210,15 @@ ISR(TIMER1_COMPA_vect) {
   }
   
   if (SENSE_ANY) {
-    // printString("sense_any\n");
     // no power (e-stop), no chiller, door open, limit switch situation
-    if (SENSE_POWER || SENSE_CHILLER || SENSE_LIMITS) {
+    if (SENSE_POWER_OFF || SENSE_CHILLER_OFF || SENSE_LIMITS) {
+      // printString("sense\n");
       // stop program
       stepper_request_stop();
       busy = false;
       return;
-    } else {
+    } else if (SENSE_DOOR_OPEN) {
+      // printString("door\n");
       // door open -> simply suspend processing
       busy = false;
       return;
@@ -447,54 +448,54 @@ static void adjust_speed( uint32_t steps_per_minute ) {
 
 static void homing_cycle(bool x_axis, bool y_axis, bool z_axis, bool reverse_direction, uint32_t microseconds_per_pulse) {
   
- //  uint32_t step_delay = microseconds_per_pulse - CONFIG_PULSE_MICROSECONDS;
- //  uint8_t out_bits = DIRECTION_MASK;
- //  uint8_t limit_bits;
- //  
- //  if (x_axis) { out_bits |= (1<<X_STEP_BIT); }
- //  if (y_axis) { out_bits |= (1<<Y_STEP_BIT); }
- //  if (z_axis) { out_bits |= (1<<Z_STEP_BIT); }
- //  
- //  // Invert direction bits if this is a reverse homing_cycle
- //  if (reverse_direction) {
- //    out_bits ^= DIRECTION_MASK;
- //  }
- //  
- //  // Apply the global invert mask
- //  out_bits ^= INVERT_MASK;
- //  
- //  // Set direction pins
- //  STEPPING_PORT = (STEPPING_PORT & ~DIRECTION_MASK) | (out_bits & DIRECTION_MASK);
- //  
- //  for(;;) {
- //    limit_bits = LIMIT_PIN;
- //    if (reverse_direction) {         
- //      // Invert limit_bits if this is a reverse homing_cycle
- //      limit_bits ^= LIMIT_MASK;
- //    }
- //    if (x_axis && !(limit_bits & (1<<X1_LIMIT_BIT))) {
- //      x_axis = false;
- //      out_bits ^= (1<<X_STEP_BIT);      
- //    }    
- //    if (y_axis && !(limit_bits & (1<<Y1_LIMIT_BIT))) {
- //      y_axis = false;
- //      out_bits ^= (1<<Y_STEP_BIT);
- //    }    
- // //   if (z_axis && !(limit_bits & (1<<Z1_LIMIT_BIT))) {
- // //     z_axis = false;
- // //     out_bits ^= (1<<Z_STEP_BIT);
- // //   }
- //    if(x_axis || y_axis || z_axis) {
- //        // step all axes still in out_bits
- //        STEPPING_PORT |= out_bits & STEPPING_MASK;
- //        _delay_us(CONFIG_PULSE_MICROSECONDS);
- //        STEPPING_PORT ^= out_bits & STEPPING_MASK;
- //        _delay_us(step_delay);
- //    } else { 
- //        return;
- //    }
- //  }
- //  return;
+  uint32_t step_delay = microseconds_per_pulse - CONFIG_PULSE_MICROSECONDS;
+  uint8_t out_bits = DIRECTION_MASK;
+  uint8_t limit_bits;
+  
+  if (x_axis) { out_bits |= (1<<X_STEP_BIT); }
+  if (y_axis) { out_bits |= (1<<Y_STEP_BIT); }
+  if (z_axis) { out_bits |= (1<<Z_STEP_BIT); }
+  
+  // Invert direction bits if this is a reverse homing_cycle
+  if (reverse_direction) {
+    out_bits ^= DIRECTION_MASK;
+  }
+  
+  // Apply the global invert mask
+  out_bits ^= INVERT_MASK;
+  
+  // Set direction pins
+  STEPPING_PORT = (STEPPING_PORT & ~DIRECTION_MASK) | (out_bits & DIRECTION_MASK);
+  
+  for(;;) {
+    limit_bits = LIMIT_PIN;
+    if (reverse_direction) {         
+      // Invert limit_bits if this is a reverse homing_cycle
+      limit_bits ^= LIMIT_MASK;
+    }
+    if (x_axis && !(limit_bits & (1<<X1_LIMIT_BIT))) {
+      x_axis = false;
+      out_bits ^= (1<<X_STEP_BIT);      
+    }    
+    if (y_axis && !(limit_bits & (1<<Y1_LIMIT_BIT))) {
+      y_axis = false;
+      out_bits ^= (1<<Y_STEP_BIT);
+    }    
+ //   if (z_axis && !(limit_bits & (1<<Z1_LIMIT_BIT))) {
+ //     z_axis = false;
+ //     out_bits ^= (1<<Z_STEP_BIT);
+ //   }
+    if(x_axis || y_axis || z_axis) {
+        // step all axes still in out_bits
+        STEPPING_PORT |= out_bits & STEPPING_MASK;
+        _delay_us(CONFIG_PULSE_MICROSECONDS);
+        STEPPING_PORT ^= out_bits & STEPPING_MASK;
+        _delay_us(step_delay);
+    } else { 
+        return;
+    }
+  }
+  return;
 }
 
 static void approach_limit_switch(bool x, bool y, bool z) {
@@ -502,11 +503,11 @@ static void approach_limit_switch(bool x, bool y, bool z) {
 }
 
 static void leave_limit_switch(bool x, bool y, bool z) {
-  homing_cycle(x, y, z, true, 100000);
+  homing_cycle(x, y, z, true, 10000);
 }
 
 void stepper_homing_cycle() {
-  stepper_synchronize();
+  stepper_synchronize();  
   // home the x and y axis
   approach_limit_switch(true, true, false);
   leave_limit_switch(true, true, false);

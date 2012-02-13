@@ -28,11 +28,11 @@
 void sense_init() {
   //// power, chiller, door
   SENSE_DDR &= ~(SENSE_MASK);  // set as input pins 
-  // LIMIT_PORT |= LIMIT_MASK;    //activate pull-up resistors 
+  // SENSE_PORT |= SENSE_MASK;    //activate pull-up resistors 
   
   //// x1_lmit, x2_limit, y1_limit, y2_limit
   LIMIT_DDR &= ~(LIMIT_MASK);  // set as input pins
-  LIMIT_PORT |= LIMIT_MASK;    //activate pull-up resistors   
+  // LIMIT_PORT |= LIMIT_MASK;    //activate pull-up resistors   
 }
 
 

@@ -17,6 +17,11 @@ Grbl - An embedded g-code interpreter and motion-controller for the Arduino/AVR3
 For more information [on Grbl](https://github.com/simen/grbl)
 
 
+TODO
+------
+- g55 wrong offset
+- homing cycle cannot recover out of bounds when limit already triggering
+
 mbed merger notes
 ------------------
 - removed

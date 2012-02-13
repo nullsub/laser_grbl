@@ -51,6 +51,9 @@
 #define STATUS_FLOATING_POINT_ERROR 4
 #define STATUS_STOP_STATE_ERROR 5
 
+#define OFFSET_G54 0
+#define OFFSET_G55 1
+
 #define BUFFER_LINE_SIZE 80
 char rx_line[BUFFER_LINE_SIZE];
 
@@ -85,13 +88,13 @@ void gcode_init() {
   gc.nominal_laser_intensity = 0U;   
   gc.offselect = 0;  // default to G54 coordinate system
   // prime G54 cs
-  // refine with "G10 L2 P1 X_ Y_ Z_"
+  // refine with "G10 L2 P0 X_ Y_ Z_"
   gc.offsets[X_AXIS] = CONFIG_X_ORIGIN_OFFSET;
   gc.offsets[Y_AXIS] = CONFIG_Y_ORIGIN_OFFSET;
   gc.offsets[Z_AXIS] = CONFIG_Z_ORIGIN_OFFSET;
   // prime G55 cs
-  // refine with "G10 L2 P2 X_ Y_ Z_"
-  // or set to any current location with "G10 L20 P2"
+  // refine with "G10 L2 P1 X_ Y_ Z_"
+  // or set to any current location with "G10 L20 P1"
   gc.offsets[3+X_AXIS] = CONFIG_X_ORIGIN_OFFSET;
   gc.offsets[3+Y_AXIS] = CONFIG_Y_ORIGIN_OFFSET;
   gc.offsets[3+Z_AXIS] = CONFIG_Z_ORIGIN_OFFSET;
@@ -218,8 +221,8 @@ uint8_t gcode_execute_line(char *line) {
           case 20: gc.inches_mode = true; break;
           case 21: gc.inches_mode = false; break;
           case 30: next_action = NEXT_ACTION_HOMING_CYCLE; break;
-          case 54: gc.offselect = 0; break;
-          case 55: gc.offselect = 1; break;
+          case 54: gc.offselect = OFFSET_G54; break;
+          case 55: gc.offselect = OFFSET_G55; break;
           case 90: gc.absolute_mode = true; break;
           case 91: gc.absolute_mode = false; break;
           default: FAIL(STATUS_UNSUPPORTED_STATEMENT);
@@ -327,9 +330,18 @@ uint8_t gcode_execute_line(char *line) {
       clear_vector(target);
       stepper_set_position(0.0, 0.0, 0.0);
       planner_set_position(0.0, 0.0, 0.0);
+      // move head to g54 offset
+      gc.offselect = OFFSET_G54;
+      target[X_AXIS] = 0;
+      target[Y_AXIS] = 0;
+      target[Z_AXIS] = 0;         
+      planner_line( target[X_AXIS] + gc.offsets[3*gc.offselect+X_AXIS], 
+                    target[Y_AXIS] + gc.offsets[3*gc.offselect+Y_AXIS], 
+                    target[Z_AXIS] + gc.offsets[3*gc.offselect+Z_AXIS], 
+                    gc.seek_rate, 0 );
       break;
     case NEXT_ACTION_SET_COORDINATE_OFFSET:
-      if (cs == 0 || cs == 1) {  // corresponds to G54, G55
+      if (cs == OFFSET_G54 || cs == OFFSET_G55) {
         if (l == 2) {
           //set offset to target, eg: G10 L2 P1 X15 Y15 Z0
           gc.offsets[3*cs+X_AXIS] = target[X_AXIS];
@@ -337,9 +349,9 @@ uint8_t gcode_execute_line(char *line) {
           gc.offsets[3*cs+Z_AXIS] = target[Z_AXIS];
         } else if (l == 20) {
           // set offset to current pos, eg: G10 L20 P2
-          gc.offsets[3*cs+X_AXIS] = gc.position[X_AXIS];
-          gc.offsets[3*cs+Y_AXIS] = gc.position[X_AXIS];
-          gc.offsets[3*cs+Z_AXIS] = gc.position[X_AXIS];        
+          gc.offsets[3*cs+X_AXIS] = gc.position[X_AXIS] + gc.offsets[3*gc.offselect+X_AXIS];
+          gc.offsets[3*cs+Y_AXIS] = gc.position[Y_AXIS] + gc.offsets[3*gc.offselect+Y_AXIS];
+          gc.offsets[3*cs+Z_AXIS] = gc.position[Z_AXIS] + gc.offsets[3*gc.offselect+Z_AXIS];        
         }
       }
       break;
