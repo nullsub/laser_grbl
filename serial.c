@@ -220,18 +220,26 @@ void printInteger(long n) {
 
 // A very simple
 void printFloat(double n) {
-  double integer_part, fractional_part;
-  uint8_t decimal_part;
-  fractional_part = modf(n, &integer_part);
-  printInteger(integer_part);
+  if (n < 0) {
+    serial_write('-');
+    n = -n;
+  }
+  n += 0.5/1000; // Add rounding factor
+ 
+  long integer_part;
+  integer_part = (int)n;
+  printIntegerInBase(integer_part,10);
+  
   serial_write('.');
-  fractional_part *= 10;
+  
+  n -= integer_part;
   int decimals = 3;
+  uint8_t decimal_part;
   while(decimals-- > 0) {
-    decimal_part = floor(fractional_part);
+    n *= 10;
+    decimal_part = (int) n;
     serial_write('0'+decimal_part);
-    fractional_part -= decimal_part;
-    fractional_part *= 10;
+    n -= decimal_part;
   }
 }
 

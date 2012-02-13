@@ -139,6 +139,7 @@ void gcode_process_line() {
       gc.position[Y_AXIS] = stepper_get_position_y();
       gc.position[Z_AXIS] = stepper_get_position_z();
       position_update_requested = false;
+      //printString("gcode pos update\n");  // debug
     }
     
     if (stepper_stop_requested()) {
@@ -295,10 +296,11 @@ uint8_t gcode_execute_line(char *line) {
                     gc.seek_rate, 0 );
       break;   
     case NEXT_ACTION_FEED:
+      printString("x: "); printFloat(target[X_AXIS] + gc.offsets[3*gc.offselect+X_AXIS]); printString("\n");
       planner_line( target[X_AXIS] + gc.offsets[3*gc.offselect+X_AXIS], 
                     target[Y_AXIS] + gc.offsets[3*gc.offselect+Y_AXIS], 
                     target[Z_AXIS] + gc.offsets[3*gc.offselect+Z_AXIS], 
-                    gc.feed_rate, gc.nominal_laser_intensity );    
+                    gc.feed_rate, gc.nominal_laser_intensity );                   
       break; 
     case NEXT_ACTION_DWELL:
       planner_dwell(p, gc.nominal_laser_intensity);
@@ -330,7 +332,7 @@ uint8_t gcode_execute_line(char *line) {
     case NEXT_ACTION_SET_COORDINATE_OFFSET:
       if (cs == 0 || cs == 1) {  // corresponds to G54, G55
         if (l == 2) {
-          //set offset to target, eg: G10 L2 P1 X10 Y10 Z0
+          //set offset to target, eg: G10 L2 P1 X15 Y15 Z0
           gc.offsets[3*cs+X_AXIS] = target[X_AXIS];
           gc.offsets[3*cs+Y_AXIS] = target[Y_AXIS];
           gc.offsets[3*cs+Z_AXIS] = target[Z_AXIS];

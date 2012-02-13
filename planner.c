@@ -68,9 +68,9 @@ void planner_init() {
 void planner_line(double x, double y, double z, double feed_rate, uint8_t nominal_laser_intensity) {    
   // calculate target position in absolute steps
   int32_t target[3];
-  target[X_AXIS] = floor(x*CONFIG_X_STEPS_PER_MM + 0.5);
-  target[Y_AXIS] = floor(y*CONFIG_Y_STEPS_PER_MM + 0.5);
-  target[Z_AXIS] = floor(z*CONFIG_Z_STEPS_PER_MM + 0.5); 
+  target[X_AXIS] = lround(x*CONFIG_X_STEPS_PER_MM);
+  target[Y_AXIS] = lround(y*CONFIG_Y_STEPS_PER_MM);
+  target[Z_AXIS] = lround(z*CONFIG_Z_STEPS_PER_MM); 
 
   // calculate the buffer head and check for space
   int next_buffer_head = next_block_index( block_buffer_head );	
@@ -83,6 +83,7 @@ void planner_line(double x, double y, double z, double feed_rate, uint8_t nomina
   if (position_update_requested) {
     planner_set_position(stepper_get_position_x(), stepper_get_position_y(), stepper_get_position_z());
     position_update_requested = false;
+    //printString("planner pos update\n");  // debug
   }
   
   // prepare to set up new block
@@ -256,9 +257,9 @@ void planner_reset_block_buffer() {
 
 // Reset the planner position vector and planner speed
 void planner_set_position(double x, double y, double z) {
-  position[X_AXIS] = floor(x*CONFIG_X_STEPS_PER_MM + 0.5);
-  position[Y_AXIS] = floor(y*CONFIG_Y_STEPS_PER_MM + 0.5);
-  position[Z_AXIS] = floor(z*CONFIG_Z_STEPS_PER_MM + 0.5);    
+  position[X_AXIS] = lround(x*CONFIG_X_STEPS_PER_MM);
+  position[Y_AXIS] = lround(y*CONFIG_Y_STEPS_PER_MM);
+  position[Z_AXIS] = lround(z*CONFIG_Z_STEPS_PER_MM);    
   previous_nominal_speed = 0.0; // resets planner junction speeds
   clear_vector_double(previous_unit_vec);
 }

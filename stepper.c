@@ -50,6 +50,7 @@
 #include "gcode.h"
 #include "planner.h"
 #include "sense_control.h"
+#include "serial.h"  //for debug
 
 
 #define CYCLES_PER_MICROSECOND (F_CPU/1000000)  //16000000/1000000 = 16
@@ -86,8 +87,8 @@ static uint32_t config_step_timer(uint32_t cycles);
 // Initialize and start the stepper motor subsystem
 void stepper_init() {  
   // Configure directions of interface pins
-  STEPPING_DDR |= STEPPING_MASK;
-  STEPPING_PORT = (STEPPING_PORT & ~STEPPING_MASK) | INVERT_MASK;
+  STEPPING_DDR |= (STEPPING_MASK | DIRECTION_MASK);
+  STEPPING_PORT = (STEPPING_PORT & ~(STEPPING_MASK | DIRECTION_MASK)) | INVERT_MASK;
   
   // waveform generation = 0100 = CTC
   TCCR1B &= ~(1<<WGM13);
@@ -197,23 +198,28 @@ ISR(TIMER2_OVF_vect) {
 // The bresenham line tracer algorithm controls all three stepper outputs simultaneously.
 ISR(TIMER1_COMPA_vect) {
   if (busy) { return; } // The busy-flag is used to avoid reentering this interrupt
+  busy = true;
   if (stop_requested) {
     // go idle and absorb any blocks
     stepper_go_idle(); 
     planner_reset_block_buffer();
     planner_request_position_update();
-    gcode_request_position_update();    
+    gcode_request_position_update();
+    busy = false;
     return;
   }
   
   if (SENSE_ANY) {
+    // printString("sense_any\n");
     // no power (e-stop), no chiller, door open, limit switch situation
     if (SENSE_POWER || SENSE_CHILLER || SENSE_LIMITS) {
       // stop program
       stepper_request_stop();
+      busy = false;
       return;
     } else {
       // door open -> simply suspend processing
+      busy = false;
       return;
     }
   }
@@ -225,13 +231,10 @@ ISR(TIMER1_COMPA_vect) {
   TCNT2 = -(((CONFIG_PULSE_MICROSECONDS-2)*CYCLES_PER_MICROSECOND) >> 3); // Reload timer counter
   TCCR2B = (1<<CS21); // Begin timer2. Full speed, 1/8 prescaler
 
-  busy = true;
   // Re-enable interrupts to allow ISR_TIMER2_OVERFLOW to trigger on-time and allow serial communications
   // regardless of time in this handler. The following code prepares the stepper driver for the next
   // step interrupt compare and will always finish before returning to the main program.
   sei();
-  
-  step_events_completed++;  // increment step count
 
   // If there is no current block, attempt to pop one from the buffer
   if (current_block == NULL) {
@@ -240,9 +243,10 @@ ISR(TIMER1_COMPA_vect) {
     // if still no block command, go idle, disable interrupt
     if (current_block == NULL) {
       stepper_go_idle();
+      busy = false;
       return;       
     }      
-    if (current_block->type == TYPE_LINE) {  // setup new motion block command
+    if (current_block->type == TYPE_LINE) {  // starting on new line block
       adjusted_rate = current_block->initial_rate;
       acceleration_tick_counter = CYCLES_PER_ACCELERATION_TICK/2; // start halfway, midpoint rule.
       adjust_speed( adjusted_rate ); // initialize cycles_per_step_event
@@ -250,6 +254,7 @@ ISR(TIMER1_COMPA_vect) {
       counter_y = counter_x;
       counter_z = counter_x;
       step_events_completed = 0;
+      printInteger((current_block->direction_bits >> X_DIRECTION_BIT) & 1); printString(":"); printInteger((current_block->direction_bits >> Y_DIRECTION_BIT) & 1); printString("\n");
     }
   }
 
@@ -274,30 +279,32 @@ ISR(TIMER1_COMPA_vect) {
         counter_z -= current_block->step_event_count;
       }
       //////
-    
+      
+      step_events_completed++;  // increment step count
+      
       // apply stepper invert mask
       out_bits ^= INVERT_MASK;
 
       ////// keep track of absolute position
       if ((out_bits >> X_STEP_BIT) & 1) {
         if ((out_bits >> X_DIRECTION_BIT) & 1 ) {
-          stepper_position[X_AXIS] += 1;
-        } else {
           stepper_position[X_AXIS] -= 1;
+        } else {
+          stepper_position[X_AXIS] += 1;
         }
       }
       if ((out_bits >> Y_STEP_BIT) & 1) {
         if ((out_bits >> Y_DIRECTION_BIT) & 1 ) {
-          stepper_position[Y_AXIS] += 1;
-        } else {
           stepper_position[Y_AXIS] -= 1;
+        } else {
+          stepper_position[Y_AXIS] += 1;
         }
       }
       if ((out_bits >> Z_STEP_BIT) & 1) {
         if ((out_bits >> Z_DIRECTION_BIT) & 1 ) {
-          stepper_position[Z_AXIS] += 1;
-        } else {
           stepper_position[Z_AXIS] -= 1;
+        } else {
+          stepper_position[Z_AXIS] += 1;
         }
       }
       //////
@@ -441,54 +448,54 @@ static void adjust_speed( uint32_t steps_per_minute ) {
 
 static void homing_cycle(bool x_axis, bool y_axis, bool z_axis, bool reverse_direction, uint32_t microseconds_per_pulse) {
   
-  uint32_t step_delay = microseconds_per_pulse - CONFIG_PULSE_MICROSECONDS;
-  uint8_t out_bits = DIRECTION_MASK;
-  uint8_t limit_bits;
-  
-  if (x_axis) { out_bits |= (1<<X_STEP_BIT); }
-  if (y_axis) { out_bits |= (1<<Y_STEP_BIT); }
-  if (z_axis) { out_bits |= (1<<Z_STEP_BIT); }
-  
-  // Invert direction bits if this is a reverse homing_cycle
-  if (reverse_direction) {
-    out_bits ^= DIRECTION_MASK;
-  }
-  
-  // Apply the global invert mask
-  out_bits ^= INVERT_MASK;
-  
-  // Set direction pins
-  STEPPING_PORT = (STEPPING_PORT & ~DIRECTION_MASK) | (out_bits & DIRECTION_MASK);
-  
-  for(;;) {
-    limit_bits = LIMIT_PIN;
-    if (reverse_direction) {         
-      // Invert limit_bits if this is a reverse homing_cycle
-      limit_bits ^= LIMIT_MASK;
-    }
-    if (x_axis && !(limit_bits & (1<<X1_LIMIT_BIT))) {
-      x_axis = false;
-      out_bits ^= (1<<X_STEP_BIT);      
-    }    
-    if (y_axis && !(limit_bits & (1<<Y1_LIMIT_BIT))) {
-      y_axis = false;
-      out_bits ^= (1<<Y_STEP_BIT);
-    }    
- //   if (z_axis && !(limit_bits & (1<<Z1_LIMIT_BIT))) {
- //     z_axis = false;
- //     out_bits ^= (1<<Z_STEP_BIT);
- //   }
-    if(x_axis || y_axis || z_axis) {
-        // step all axes still in out_bits
-        STEPPING_PORT |= out_bits & STEPPING_MASK;
-        _delay_us(CONFIG_PULSE_MICROSECONDS);
-        STEPPING_PORT ^= out_bits & STEPPING_MASK;
-        _delay_us(step_delay);
-    } else { 
-        return;
-    }
-  }
-  return;
+ //  uint32_t step_delay = microseconds_per_pulse - CONFIG_PULSE_MICROSECONDS;
+ //  uint8_t out_bits = DIRECTION_MASK;
+ //  uint8_t limit_bits;
+ //  
+ //  if (x_axis) { out_bits |= (1<<X_STEP_BIT); }
+ //  if (y_axis) { out_bits |= (1<<Y_STEP_BIT); }
+ //  if (z_axis) { out_bits |= (1<<Z_STEP_BIT); }
+ //  
+ //  // Invert direction bits if this is a reverse homing_cycle
+ //  if (reverse_direction) {
+ //    out_bits ^= DIRECTION_MASK;
+ //  }
+ //  
+ //  // Apply the global invert mask
+ //  out_bits ^= INVERT_MASK;
+ //  
+ //  // Set direction pins
+ //  STEPPING_PORT = (STEPPING_PORT & ~DIRECTION_MASK) | (out_bits & DIRECTION_MASK);
+ //  
+ //  for(;;) {
+ //    limit_bits = LIMIT_PIN;
+ //    if (reverse_direction) {         
+ //      // Invert limit_bits if this is a reverse homing_cycle
+ //      limit_bits ^= LIMIT_MASK;
+ //    }
+ //    if (x_axis && !(limit_bits & (1<<X1_LIMIT_BIT))) {
+ //      x_axis = false;
+ //      out_bits ^= (1<<X_STEP_BIT);      
+ //    }    
+ //    if (y_axis && !(limit_bits & (1<<Y1_LIMIT_BIT))) {
+ //      y_axis = false;
+ //      out_bits ^= (1<<Y_STEP_BIT);
+ //    }    
+ // //   if (z_axis && !(limit_bits & (1<<Z1_LIMIT_BIT))) {
+ // //     z_axis = false;
+ // //     out_bits ^= (1<<Z_STEP_BIT);
+ // //   }
+ //    if(x_axis || y_axis || z_axis) {
+ //        // step all axes still in out_bits
+ //        STEPPING_PORT |= out_bits & STEPPING_MASK;
+ //        _delay_us(CONFIG_PULSE_MICROSECONDS);
+ //        STEPPING_PORT ^= out_bits & STEPPING_MASK;
+ //        _delay_us(step_delay);
+ //    } else { 
+ //        return;
+ //    }
+ //  }
+ //  return;
 }
 
 static void approach_limit_switch(bool x, bool y, bool z) {
