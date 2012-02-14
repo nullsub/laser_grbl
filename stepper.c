@@ -445,8 +445,8 @@ static void homing_cycle(bool x_axis, bool y_axis, bool z_axis, bool reverse_dir
   uint32_t step_delay = microseconds_per_pulse - CONFIG_PULSE_MICROSECONDS;
   uint8_t out_bits = DIRECTION_MASK;
   uint8_t limit_bits;
-  uint8_t x_overshoot_count = 4;
-  uint8_t y_overshoot_count = 4;
+  uint8_t x_overshoot_count = 6;
+  uint8_t y_overshoot_count = 6;
   
   if (x_axis) { out_bits |= (1<<X_STEP_BIT); }
   if (y_axis) { out_bits |= (1<<Y_STEP_BIT); }
