@@ -131,7 +131,7 @@ void stepper_wake_up() {
   if (!processing_flag) {
     processing_flag = true;
     // Initialize stepper output bits
-    out_bits = (0) ^ (INVERT_MASK);
+    out_bits = INVERT_MASK;
     // Enable stepper driver interrupt
     TIMSK1 |= (1<<OCIE1A);
   }
@@ -267,16 +267,34 @@ ISR(TIMER1_COMPA_vect) {
       if (counter_x > 0) {
         out_bits |= (1<<X_STEP_BIT);
         counter_x -= current_block->step_event_count;
+        // also keep track of absolute position
+        if ((out_bits >> X_DIRECTION_BIT) & 1 ) {
+          stepper_position[X_AXIS] -= 1;
+        } else {
+          stepper_position[X_AXIS] += 1;
+        }        
       }
       counter_y += current_block->steps_y;
       if (counter_y > 0) {
         out_bits |= (1<<Y_STEP_BIT);
         counter_y -= current_block->step_event_count;
+        // also keep track of absolute position
+        if ((out_bits >> Y_DIRECTION_BIT) & 1 ) {
+          stepper_position[Y_AXIS] -= 1;
+        } else {
+          stepper_position[Y_AXIS] += 1;
+        }        
       }
       counter_z += current_block->steps_z;
       if (counter_z > 0) {
         out_bits |= (1<<Z_STEP_BIT);
         counter_z -= current_block->step_event_count;
+        // also keep track of absolute position        
+        if ((out_bits >> Z_DIRECTION_BIT) & 1 ) {
+          stepper_position[Z_AXIS] -= 1;
+        } else {
+          stepper_position[Z_AXIS] += 1;
+        }        
       }
       //////
       
@@ -284,30 +302,6 @@ ISR(TIMER1_COMPA_vect) {
       
       // apply stepper invert mask
       out_bits ^= INVERT_MASK;
-
-      ////// keep track of absolute position
-      if ((out_bits >> X_STEP_BIT) & 1) {
-        if ((out_bits >> X_DIRECTION_BIT) & 1 ) {
-          stepper_position[X_AXIS] -= 1;
-        } else {
-          stepper_position[X_AXIS] += 1;
-        }
-      }
-      if ((out_bits >> Y_STEP_BIT) & 1) {
-        if ((out_bits >> Y_DIRECTION_BIT) & 1 ) {
-          stepper_position[Y_AXIS] -= 1;
-        } else {
-          stepper_position[Y_AXIS] += 1;
-        }
-      }
-      if ((out_bits >> Z_STEP_BIT) & 1) {
-        if ((out_bits >> Z_DIRECTION_BIT) & 1 ) {
-          stepper_position[Z_AXIS] -= 1;
-        } else {
-          stepper_position[Z_AXIS] += 1;
-        }
-      }
-      //////
 
       ////////// SPEED ADJUSTMENT
       if (step_events_completed < current_block->step_event_count) {  // block not finished
