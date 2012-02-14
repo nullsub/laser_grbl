@@ -328,7 +328,6 @@ uint8_t gcode_execute_line(char *line) {
       // zero all the position vectors
       clear_vector(gc.position);
       clear_vector(target);
-      stepper_set_position(0.0, 0.0, 0.0);
       planner_set_position(0.0, 0.0, 0.0);
       // move head to g54 offset
       gc.offselect = OFFSET_G54;

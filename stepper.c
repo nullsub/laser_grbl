@@ -445,6 +445,8 @@ static void homing_cycle(bool x_axis, bool y_axis, bool z_axis, bool reverse_dir
   uint32_t step_delay = microseconds_per_pulse - CONFIG_PULSE_MICROSECONDS;
   uint8_t out_bits = DIRECTION_MASK;
   uint8_t limit_bits;
+  uint8_t x_overshoot_count = 4;
+  uint8_t y_overshoot_count = 4;
   
   if (x_axis) { out_bits |= (1<<X_STEP_BIT); }
   if (y_axis) { out_bits |= (1<<Y_STEP_BIT); }
@@ -468,17 +470,29 @@ static void homing_cycle(bool x_axis, bool y_axis, bool z_axis, bool reverse_dir
       limit_bits ^= LIMIT_MASK;
     }
     if (x_axis && !(limit_bits & (1<<X1_LIMIT_BIT))) {
-      x_axis = false;
-      out_bits ^= (1<<X_STEP_BIT);      
-    }    
+      if(x_overshoot_count == 0) {
+        x_axis = false;
+        out_bits ^= (1<<X_STEP_BIT);
+      } else {
+        x_overshoot_count--;
+      }     
+    } 
     if (y_axis && !(limit_bits & (1<<Y1_LIMIT_BIT))) {
-      y_axis = false;
-      out_bits ^= (1<<Y_STEP_BIT);
-    }    
- //   if (z_axis && !(limit_bits & (1<<Z1_LIMIT_BIT))) {
- //     z_axis = false;
- //     out_bits ^= (1<<Z_STEP_BIT);
- //   }
+      if(y_overshoot_count == 0) {
+        y_axis = false;
+        out_bits ^= (1<<Y_STEP_BIT);
+      } else {
+        y_overshoot_count--;
+      }        
+    }
+    // if (z_axis && !(limit_bits & (1<<Z1_LIMIT_BIT))) {
+    //   if(z_overshoot_count == 0) {
+    //     z_axis = false;
+    //     out_bits ^= (1<<Z_STEP_BIT);
+    //   } else {
+    //     z_overshoot_count--;
+    //   }        
+    // }
     if(x_axis || y_axis || z_axis) {
         // step all axes still in out_bits
         STEPPING_PORT |= out_bits & STEPPING_MASK;
@@ -486,9 +500,10 @@ static void homing_cycle(bool x_axis, bool y_axis, bool z_axis, bool reverse_dir
         STEPPING_PORT ^= out_bits & STEPPING_MASK;
         _delay_us(step_delay);
     } else { 
-        return;
+        break;
     }
   }
+  clear_vector(stepper_position);
   return;
 }
 
