@@ -39,8 +39,8 @@
 #define CONFIG_X_ORIGIN_OFFSET 10.0  // mm, x-offset of table origin from physical home
 #define CONFIG_Y_ORIGIN_OFFSET 10.0  // mm, y-offset of table origin from physical home
 #define CONFIG_Z_ORIGIN_OFFSET 0.0   // mm, z-offset of table origin from physical home
-#define CONFIG_INVERT_X_AXIS 0  // 0 is regular, 1 inverts the x direction
-#define CONFIG_INVERT_Y_AXIS 0  // 0 is regular, 1 inverts the y direction
+#define CONFIG_INVERT_X_AXIS 1  // 0 is regular, 1 inverts the x direction
+#define CONFIG_INVERT_Y_AXIS 1  // 0 is regular, 1 inverts the y direction
 
 
 #define LIMITS_OVERWRITE_DDR     DDRD
