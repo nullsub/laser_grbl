@@ -28,6 +28,21 @@
 #define BAUD_RATE 9600
 
 
+#define CONFIG_X_STEPS_PER_MM 32.80839895 //microsteps/mm
+#define CONFIG_Y_STEPS_PER_MM 32.80839895 //microsteps/mm
+#define CONFIG_Z_STEPS_PER_MM 32.80839895 //microsteps/mm
+#define CONFIG_PULSE_MICROSECONDS 5
+#define CONFIG_FEEDRATE 20000.0 // in millimeters per minute
+#define CONFIG_SEEKRATE 5000.0
+#define CONFIG_ACCELERATION 1800000.0 // mm/min^2, typically 1000000-8000000, divide by (60*60) to get mm/sec^2
+#define CONFIG_JUNCTION_DEVIATION 0.1 // mm
+#define CONFIG_X_ORIGIN_OFFSET 10.0  // mm, x-offset of table origin from physical home
+#define CONFIG_Y_ORIGIN_OFFSET 10.0  // mm, y-offset of table origin from physical home
+#define CONFIG_Z_ORIGIN_OFFSET 0.0   // mm, z-offset of table origin from physical home
+#define CONFIG_INVERT_X_AXIS 0  // 0 is regular, 1 inverts the x direction
+#define CONFIG_INVERT_Y_AXIS 0  // 0 is regular, 1 inverts the y direction
+
+
 #define LIMITS_OVERWRITE_DDR     DDRD
 #define LIMITS_OVERWRITE_PORT    PORTD
 #define LIMITS_OVERWRITE_BIT     7
@@ -62,25 +77,25 @@
 #define Z_DIRECTION_BIT         5
 
 
+
+
 #define SENSE_MASK ((1<<POWER_BIT)|(1<<CHILLER_BIT)|(1<<DOOR_BIT))
 #define LIMIT_MASK ((1<<X1_LIMIT_BIT)|(1<<X2_LIMIT_BIT)|(1<<Y1_LIMIT_BIT)|(1<<Y2_LIMIT_BIT))
 #define STEPPING_MASK ((1<<X_STEP_BIT)|(1<<Y_STEP_BIT)|(1<<Z_STEP_BIT))
 #define DIRECTION_MASK ((1<<X_DIRECTION_BIT)|(1<<Y_DIRECTION_BIT)|(1<<Z_DIRECTION_BIT))
-#define INVERT_MASK 0U  //(1<<X_DIRECTION_BIT) | (1<<Y_DIRECTION_BIT)
-// #define INVERT_MASK 24U  // typical forLin Engineering Steppers, 0x00011000 invert direction pin 3 and 4
-// #define INVERT_MASK 0U   // typical for Nanotec Steppers
 
-#define CONFIG_X_STEPS_PER_MM 32.80839895 //microsteps/mm
-#define CONFIG_Y_STEPS_PER_MM 32.80839895 //microsteps/mm
-#define CONFIG_Z_STEPS_PER_MM 32.80839895 //microsteps/mm
-#define CONFIG_PULSE_MICROSECONDS 5
-#define CONFIG_FEEDRATE 20000.0 // in millimeters per minute
-#define CONFIG_SEEKRATE 5000.0
-#define CONFIG_ACCELERATION 1800000.0 // mm/min^2, typically 1000000-8000000, divide by (60*60) to get mm/sec^2
-#define CONFIG_JUNCTION_DEVIATION 0.1 // mm
-#define CONFIG_X_ORIGIN_OFFSET 10.0  // mm, x-offset of table origin from physical home
-#define CONFIG_Y_ORIGIN_OFFSET 10.0  // mm, y-offset of table origin from physical home
-#define CONFIG_Z_ORIGIN_OFFSET 0.0   // mm, z-offset of table origin from physical home
+// figure out INVERT_MASK
+// careful! direction pins hardcoded here
+// (1<<X_DIRECTION_BIT) | (1<<Y_DIRECTION_BIT)
+#if CONFIG_INVERT_X_AXIS && CONFIG_INVERT_Y_AXIS
+  #define INVERT_MASK 24U
+#elif CONFIG_INVERT_X_AXIS
+  #define INVERT_MASK 8U
+#elif CONFIG_INVERT_Y_AXIS
+  #define INVERT_MASK 16U
+#else
+  #define INVERT_MASK 0U
+#endif
 
 
 // The temporal resolution of the acceleration management subsystem. Higher number give smoother
