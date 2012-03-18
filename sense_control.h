@@ -35,6 +35,7 @@ void sense_init();
 
 void control_init();
 
+void control_laser(bool enable);
 void control_laser_intensity(uint8_t intensity);  //0-255 is 0-100%
 
 void control_air(bool enable);

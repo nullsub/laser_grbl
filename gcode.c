@@ -43,6 +43,8 @@
 #define NEXT_ACTION_AIRGAS_DISABLE 6
 #define NEXT_ACTION_AIR_ENABLE 7
 #define NEXT_ACTION_GAS_ENABLE 8
+#define NEXT_ACTION_LASER_ON 9
+#define NEXT_ACTION_LASER_OFF 10
 
 #define STATUS_OK 0
 #define STATUS_BAD_NUMBER_FORMAT 1
@@ -233,6 +235,8 @@ uint8_t gcode_execute_line(char *line) {
           case 7: next_action = NEXT_ACTION_AIR_ENABLE;break;
           case 8: next_action = NEXT_ACTION_GAS_ENABLE;break;
           case 9: next_action = NEXT_ACTION_AIRGAS_DISABLE;break;
+          case 140: next_action = NEXT_ACTION_LASER_ON;break;
+          case 141: next_action = NEXT_ACTION_LASER_OFF;break;
           default: FAIL(STATUS_UNSUPPORTED_STATEMENT);
         }            
         break;
@@ -363,6 +367,12 @@ uint8_t gcode_execute_line(char *line) {
     case NEXT_ACTION_GAS_ENABLE:
       planner_control_gas_enable();
       break;
+    case NEXT_ACTION_LASER_ON:
+      planner_control_laser_on();
+      break;
+    case NEXT_ACTION_LASER_OFF:
+      planner_control_laser_off();
+      break;      
   }
   
   // As far as the parser is concerned, the position is now == target. In reality the

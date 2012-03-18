@@ -365,7 +365,19 @@ ISR(TIMER1_COMPA_vect) {
       control_gas(true);
       current_block = NULL;
       planner_discard_current_block();  
-      break;      
+      break;
+         
+    case TYPE_LASER_ON:
+      control_laser(true);
+      current_block = NULL;
+      planner_discard_current_block();  
+      break;
+
+    case TYPE_LASER_OFF:
+      control_laser(false);
+      current_block = NULL;
+      planner_discard_current_block();  
+      break; 
   }
   
   busy = false;
