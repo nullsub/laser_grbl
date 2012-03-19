@@ -103,9 +103,9 @@ def build():
     file_abs = os.path.join(current_dir, 'main.elf')
     if os.path.isfile(file_abs):
         os.remove(file_abs)
-    file_abs = os.path.join(current_dir, 'LasaurGrbl.hex')
-    if os.path.isfile(file_abs):
-        os.remove(file_abs)
+    # file_abs = os.path.join(current_dir, 'LasaurGrbl.hex')
+    # if os.path.isfile(file_abs):
+    #     os.remove(file_abs)
 
 ## define serial port
 ##
