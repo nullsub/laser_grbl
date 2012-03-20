@@ -49,9 +49,9 @@ void control_init() {
   TCCR0A |= (1 << WGM00);   // set phase correct PWM mode, has half the freq of fast PWM
   TCCR0B |= (1 << CS00);    // prescaler to 1, PWMfreq = 16000/(2*256*1) = 31.25kH
   
-  //// laser on/off pin
+  //// laser enable/disable pin
   LASER_DDR |= (1 << LASER_ENABLE_BIT);  // set as output pin
-  control_laser(false);
+  control_laser_enable(false);
   
   //// air and gas assist control
   AIRGAS_DDR |= (1 << AIR_BIT);  // set as output pin
@@ -65,7 +65,7 @@ void control_init() {
 }
 
 
-void control_laser(bool enable) {
+void control_laser_enable(bool enable) {
   if (enable) {
     LASER_PORT &= ~(1 << LASER_ENABLE_BIT);
   } else {
