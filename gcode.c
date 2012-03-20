@@ -311,21 +311,6 @@ uint8_t gcode_execute_line(char *line) {
     case NEXT_ACTION_DWELL:
       planner_dwell(p, gc.nominal_laser_intensity);
       break;
-    // case NEXT_ACTION_STOP:
-    //   planner_stop();  // stop and cancel the remaining program
-    //   gc.position[X_AXIS] = stepper_get_position_x();
-    //   gc.position[Y_AXIS] = stepper_get_position_y();
-    //   gc.position[Z_AXIS] = stepper_get_position_z();
-    //   planner_set_position(gc.position[X_AXIS], gc.position[Y_AXIS], gc.position[Z_AXIS]);
-    //   // move to table origin
-    //   target[X_AXIS] = 0;
-    //   target[Y_AXIS] = 0;
-    //   target[Z_AXIS] = 0;         
-    //   planner_line( target[X_AXIS] + gc.offsets[3*gc.offselect+X_AXIS], 
-    //                 target[Y_AXIS] + gc.offsets[3*gc.offselect+Y_AXIS], 
-    //                 target[Z_AXIS] + gc.offsets[3*gc.offselect+Z_AXIS], 
-    //                 gc.seek_rate, 0 );
-    //   break;
     case NEXT_ACTION_HOMING_CYCLE:
       stepper_homing_cycle();
       // now that we are at the physical home
