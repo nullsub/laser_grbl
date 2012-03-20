@@ -222,7 +222,22 @@ void planner_command(uint8_t type) {
 
   // set block type command
   block->type = type;
-
+  
+  // set block fields so planner calculates the right 
+  // acceleration profiles for the adjacent blocks
+  block->nominal_laser_intensity = 0;
+  block->direction_bits = 0;
+  block->steps_x = 0;
+  block->steps_y = 0;
+  block->steps_z = 0;
+  block->step_event_count = 0;
+  block->millimeters = 0.0;
+  block->nominal_speed = 0.1;  //must be > 0 ?
+  block->nominal_rate = 1;
+  block->rate_delta = 1  // must be > 0 ?
+  block->vmax_junction = ZERO_SPEED;
+  block->entry_speed = 0.0;  
+  
   // Move buffer head
   block_buffer_head = next_buffer_head;
 

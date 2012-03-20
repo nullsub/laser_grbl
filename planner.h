@@ -49,7 +49,7 @@ typedef struct {
   int32_t  step_event_count;          // The number of step events required to complete this block
   uint32_t nominal_rate;              // The nominal step rate for this block in step_events/minute
   // Fields used by the motion planner to manage acceleration
-  double nominal_speed;               // The nominal speed for this block in mm/min  
+  double nominal_speed;               // The nominal speed for this block in mm/min  (must be != 0)
   double entry_speed;                 // Entry speed at previous-current junction in mm/min
   double vmax_junction;               // max junction speed (mm/min) based on angle between segments, accel and deviation settings
   double millimeters;                 // The total travel of this block in mm
@@ -59,7 +59,7 @@ typedef struct {
   // Settings for the trapezoid generator
   uint32_t initial_rate;              // The jerk-adjusted step rate at start of block  
   uint32_t final_rate;                // The minimal rate at exit
-  int32_t rate_delta;                 // The steps/minute to add or subtract when changing speed (must be positive)
+  int32_t rate_delta;                 // The steps/minute to add or subtract when changing speed (must be > 0)
   uint32_t accelerate_until;          // The index of the step event on which to stop acceleration
   uint32_t decelerate_after;          // The index of the step event on which to start decelerating
 
