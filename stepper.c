@@ -246,8 +246,9 @@ ISR(TIMER1_COMPA_vect) {
       stepper_go_idle();
       busy = false;
       return;       
-    }      
-    if (current_block->type == TYPE_LINE) {  // starting on new line block
+    }
+    // event - starting new block 
+    if (current_block->type == TYPE_LINE) {
       adjusted_rate = current_block->initial_rate;
       acceleration_tick_counter = CYCLES_PER_ACCELERATION_TICK/2; // start halfway, midpoint rule.
       adjust_speed( adjusted_rate ); // initialize cycles_per_step_event
