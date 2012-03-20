@@ -234,7 +234,7 @@ void planner_command(uint8_t type) {
   block->millimeters = 0.0;
   block->nominal_speed = 0.1;  //must be > 0 ?
   block->nominal_rate = 1;
-  block->rate_delta = 1  // must be > 0 ?
+  block->rate_delta = 1;  // must be > 0 ?
   block->vmax_junction = ZERO_SPEED;
   block->entry_speed = 0.0;  
   
