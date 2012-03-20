@@ -235,8 +235,8 @@ uint8_t gcode_execute_line(char *line) {
           case 7: next_action = NEXT_ACTION_AIR_ENABLE;break;
           case 8: next_action = NEXT_ACTION_GAS_ENABLE;break;
           case 9: next_action = NEXT_ACTION_AIRGAS_DISABLE;break;
-          case 140: next_action = NEXT_ACTION_LASER_ENABLE;break;
-          case 141: next_action = NEXT_ACTION_LASER_DISABLE;break;
+          case 140: next_action = NEXT_ACTION_LASER_DISABLE;break;
+          case 141: next_action = NEXT_ACTION_LASER_ENABLE;break;
           default: FAIL(STATUS_UNSUPPORTED_STATEMENT);
         }            
         break;
