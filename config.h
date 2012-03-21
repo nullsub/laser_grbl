@@ -42,9 +42,9 @@
 #define CONFIG_INVERT_X_AXIS 1  // 0 is regular, 1 inverts the x direction
 #define CONFIG_INVERT_Y_AXIS 1  // 0 is regular, 1 inverts the y direction
 
-#define CONFIG_WAIT_ON_SCODE 0  // time (sec) to wait after a S-code laser intensity change
 #define CONFIG_BEAM_DYNAMICS 0  // whether (0 or 1) to adapt the laser intensity to speed changes
 #define CONFIG_USE_LASER_ENABLE_BIT 0 // whether (0 or 1) to use the laser enable pin on seeks (G0)
+#define CONFIG_LASER_ENABLE_LATENCY 0 // time (sec) it takes to enable the laser
 
 
 #define LIMITS_OVERWRITE_DDR     DDRD

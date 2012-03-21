@@ -204,8 +204,8 @@ uint8_t gcode_execute_line(char *line) {
   int int_value;
   double unit_converted_value;  
   uint8_t next_action = NEXT_ACTION_NONE;
-  double target[3], offset[3];  
-  double p = 0;
+  double target[3];  
+  double p = 0.0;
   int cs = 0;
   int l = 0;
   gc.status_code = STATUS_OK;
@@ -248,8 +248,6 @@ uint8_t gcode_execute_line(char *line) {
   if (gc.status_code) { return gc.status_code; }
 
   char_counter = 0;
-  clear_vector(target);
-  clear_vector(offset);
   memcpy(target, gc.position, sizeof(target)); // i.e. target = gc.position
 
   //// Pass 2: Parameters
@@ -296,22 +294,39 @@ uint8_t gcode_execute_line(char *line) {
       
   //// Perform any physical actions
   switch (next_action) {
-    case NEXT_ACTION_SEEK:
-      planner_line( target[X_AXIS] + gc.offsets[3*gc.offselect+X_AXIS], 
-                    target[Y_AXIS] + gc.offsets[3*gc.offselect+Y_AXIS], 
-                    target[Z_AXIS] + gc.offsets[3*gc.offselect+Z_AXIS], 
-                    gc.seek_rate, 0 );
+    case NEXT_ACTION_SEEK:  // G0
+      if (CONFIG_USE_LASER_ENABLE_BIT) {
+        if (control_is_laser_enabled()) {
+          // when path ends -> disable laser and dwell some time
+          planner_control_laser_disable(CONFIG_LASER_ENABLE_LATENCY);
+        }
+        // seek - keep pwm up, laser is disabled via the LASER_ENABLE_BIT
+        planner_line( target[X_AXIS] + gc.offsets[3*gc.offselect+X_AXIS], 
+                      target[Y_AXIS] + gc.offsets[3*gc.offselect+Y_AXIS], 
+                      target[Z_AXIS] + gc.offsets[3*gc.offselect+Z_AXIS], 
+                      gc.seek_rate, gc.nominal_laser_intensity );        
+      } else {
+        // seek - turn pwm down
+        planner_line( target[X_AXIS] + gc.offsets[3*gc.offselect+X_AXIS], 
+                      target[Y_AXIS] + gc.offsets[3*gc.offselect+Y_AXIS], 
+                      target[Z_AXIS] + gc.offsets[3*gc.offselect+Z_AXIS], 
+                      gc.seek_rate, 0 );
+      }
       break;   
-    case NEXT_ACTION_FEED:
+    case NEXT_ACTION_FEED:  // G1
+      if (CONFIG_USE_LASER_ENABLE_BIT && !control_is_laser_enabled()) {
+        // when a new path starts -> enable laser and dwell some time
+        planner_control_laser_enable(CONFIG_LASER_ENABLE_LATENCY, gc.nominal_laser_intensity);
+      }
       planner_line( target[X_AXIS] + gc.offsets[3*gc.offselect+X_AXIS], 
                     target[Y_AXIS] + gc.offsets[3*gc.offselect+Y_AXIS], 
                     target[Z_AXIS] + gc.offsets[3*gc.offselect+Z_AXIS], 
                     gc.feed_rate, gc.nominal_laser_intensity );                   
       break; 
-    case NEXT_ACTION_DWELL:
+    case NEXT_ACTION_DWELL:  // G4
       planner_dwell(p, gc.nominal_laser_intensity);
       break;
-    case NEXT_ACTION_HOMING_CYCLE:
+    case NEXT_ACTION_HOMING_CYCLE:  // G30
       stepper_homing_cycle();
       // now that we are at the physical home
       // zero all the position vectors
@@ -328,7 +343,7 @@ uint8_t gcode_execute_line(char *line) {
                     target[Z_AXIS] + gc.offsets[3*gc.offselect+Z_AXIS], 
                     gc.seek_rate, 0 );
       break;
-    case NEXT_ACTION_SET_COORDINATE_OFFSET:
+    case NEXT_ACTION_SET_COORDINATE_OFFSET:  // G10
       if (cs == OFFSET_G54 || cs == OFFSET_G55) {
         if (l == 2) {
           //set offset to target, eg: G10 L2 P1 X15 Y15 Z0
@@ -343,20 +358,20 @@ uint8_t gcode_execute_line(char *line) {
         }
       }
       break;
-    case NEXT_ACTION_AIRGAS_DISABLE:
-      planner_control_airgas_disable();
+    case NEXT_ACTION_AIRGAS_DISABLE:  // M9
+      planner_control_airgas_disable(p);
       break;
-    case NEXT_ACTION_AIR_ENABLE:
-      planner_control_air_enable();
+    case NEXT_ACTION_AIR_ENABLE:  // M7
+      planner_control_air_enable(p);
       break;
-    case NEXT_ACTION_GAS_ENABLE:
-      planner_control_gas_enable();
+    case NEXT_ACTION_GAS_ENABLE:  // M8
+      planner_control_gas_enable(p);
       break;
-    case NEXT_ACTION_LASER_ENABLE:
-      planner_control_laser_enable();
+    case NEXT_ACTION_LASER_ENABLE:  // M141
+      planner_control_laser_enable(p, gc.nominal_laser_intensity);
       break;
-    case NEXT_ACTION_LASER_DISABLE:
-      planner_control_laser_disable();
+    case NEXT_ACTION_LASER_DISABLE:  // M140
+      planner_control_laser_disable(p);
       break;      
   }
   

@@ -70,12 +70,11 @@ static volatile uint8_t busy;  // true whe stepper ISR is in already running
 
 // Variables used by the trapezoid generation
 static uint32_t cycles_per_step_event;        // The number of machine cycles between each step event
-static uint32_t acceleration_tick_counter;    // The cycles since last acceleration_tick.
+static uint32_t tick_counter;                 // The cycles since last speed change.
                                               // Used to generate ticks at a steady pace without allocating a separate timer.
 static uint32_t adjusted_rate;                // The current rate of step_events according to the speed profile
 static bool processing_flag;                  // indicates if blocks are being processed
 static volatile bool stop_requested;          // when set to true stepper interrupt will go idle on next entry
-
 
 // prototypes for static functions (non-accesible from other files)
 static bool acceleration_tick();
@@ -107,7 +106,7 @@ void stepper_init() {
   
   adjust_speed(MINIMUM_STEPS_PER_MINUTE);
   clear_vector(stepper_position);
-  acceleration_tick_counter = 0;
+  tick_counter = 0;
   current_block = NULL;
   stop_requested = false;
   busy = false;
@@ -250,18 +249,20 @@ ISR(TIMER1_COMPA_vect) {
     // event - starting new block 
     if (current_block->type == TYPE_LINE) {
       adjusted_rate = current_block->initial_rate;
-      acceleration_tick_counter = CYCLES_PER_ACCELERATION_TICK/2; // start halfway, midpoint rule.
+      tick_counter = CYCLES_PER_ACCELERATION_TICK/2; // start halfway, midpoint rule.
       adjust_speed( adjusted_rate ); // initialize cycles_per_step_event
       counter_x = -(current_block->step_event_count >> 1);
       counter_y = counter_x;
       counter_z = counter_x;
       step_events_completed = 0;
+    } else {  // TYPE_DWELL, ...
+      tick_counter = 0;  // use tick_counter to keep track of dwell time
     }
   }
 
-  // process current block, populate out_bits (or handle other commands)
-  switch (current_block->type) {
-    case TYPE_LINE:
+  //// process current block, populate out_bits (or handle other commands) ////
+  
+  if (current_block->type == TYPE_LINE) {
       ////// Execute step displacement profile by bresenham line algorithm
       out_bits = current_block->direction_bits;
       counter_x += current_block->steps_x;
@@ -321,7 +322,7 @@ ISR(TIMER1_COMPA_vect) {
         } else if (step_events_completed == current_block->decelerate_after) {
             // reset counter, midpoint rule
             // makes sure deceleration is performed the same every time
-            acceleration_tick_counter = CYCLES_PER_ACCELERATION_TICK/2;
+            tick_counter = CYCLES_PER_ACCELERATION_TICK/2;
                  
         // decelerating
         } else if (step_events_completed >= current_block->decelerate_after) {
@@ -347,38 +348,40 @@ ISR(TIMER1_COMPA_vect) {
       }
       ////////// END OF SPEED ADJUSTMENT
     
-      break; 
-
-    case TYPE_AIRGAS_DISABLE:
-      control_air(false);
-      control_gas(false);
-      current_block = NULL;
-      planner_discard_current_block();  
-      break;
-
-    case TYPE_AIR_ENABLE:
-      control_air(true);
-      current_block = NULL;
-      planner_discard_current_block();  
-      break;
-
-    case TYPE_GAS_ENABLE:
-      control_gas(true);
-      current_block = NULL;
-      planner_discard_current_block();  
-      break;
-         
-    case TYPE_LASER_ENABLE:
-      control_laser_enable(true);
-      current_block = NULL;
-      planner_discard_current_block();  
-      break;
-
-    case TYPE_LASER_DISABLE:
-      control_laser_enable(false);
-      current_block = NULL;
-      planner_discard_current_block();  
-      break; 
+  } else if ( current_block->type == TYPE_DWELL ||
+              current_block->type == TYPE_AIRGAS_DISABLE ||
+              current_block->type == TYPE_AIR_ENABLE ||
+              current_block->type == TYPE_GAS_ENABLE ||
+              current_block->type == TYPE_LASER_ENABLE ||
+              current_block->type == TYPE_LASER_DISABLE ) {
+      // on first entry do switching based on type
+      if (tick_counter == 0) {
+        switch (current_block->type) {
+          case TYPE_AIRGAS_DISABLE:
+            control_air(false);
+            control_gas(false);
+            break;
+          case TYPE_AIR_ENABLE:
+            control_air(true);
+            break;
+          case TYPE_GAS_ENABLE:
+            control_gas(true);
+            break;
+          case TYPE_LASER_ENABLE:
+            control_laser_enable(true);
+            break;
+          case TYPE_LASER_DISABLE:
+            control_laser_enable(false);
+            break;
+        }      
+      }
+      // keep track of time
+      tick_counter += cycles_per_step_event;
+      // finalize when dwell time is over
+      if(tick_counter > current_block->dwell_until) {
+        current_block = NULL;
+        planner_discard_current_block(); 
+      }  // else reenter and increase tick_counter until dwell time over
   }
   
   busy = false;
@@ -391,9 +394,9 @@ ISR(TIMER1_COMPA_vect) {
 // keeping track of the number of elapsed cycles during a de/ac-celeration. The code assumes that
 // step_events occur significantly more often than the acceleration velocity iterations.
 static bool acceleration_tick() {
-  acceleration_tick_counter += cycles_per_step_event;
-  if(acceleration_tick_counter > CYCLES_PER_ACCELERATION_TICK) {
-    acceleration_tick_counter -= CYCLES_PER_ACCELERATION_TICK;
+  tick_counter += cycles_per_step_event;
+  if(tick_counter > CYCLES_PER_ACCELERATION_TICK) {
+    tick_counter -= CYCLES_PER_ACCELERATION_TICK;
     return true;
   } else {
     return false;

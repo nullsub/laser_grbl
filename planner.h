@@ -24,19 +24,22 @@
 #include "config.h"
 
 
-// Command types the planner and stepper can schedule for execution 
+// Command types the planner and stepper can schedule for execution
 #define TYPE_LINE 0
-#define TYPE_AIRGAS_DISABLE 1
-#define TYPE_AIR_ENABLE 2
-#define TYPE_GAS_ENABLE 3
-#define TYPE_LASER_ENABLE 4
-#define TYPE_LASER_DISABLE 5
+#define TYPE_DWELL 1
+#define TYPE_AIRGAS_DISABLE 2
+#define TYPE_AIR_ENABLE 3
+#define TYPE_GAS_ENABLE 4
+#define TYPE_LASER_ENABLE 5
+#define TYPE_LASER_DISABLE 6
 
-#define planner_control_airgas_disable() planner_command(TYPE_AIRGAS_DISABLE)
-#define planner_control_air_enable() planner_command(TYPE_AIR_ENABLE)
-#define planner_control_gas_enable() planner_command(TYPE_GAS_ENABLE)
-#define planner_control_laser_enable() planner_command(TYPE_LASER_ENABLE)
-#define planner_control_laser_disable() planner_command(TYPE_LASER_DISABLE)
+
+#define planner_dwell(seconds, intensity) planner_command(TYPE_DWELL, seconds, intensity)
+#define planner_control_airgas_disable(seconds) planner_command(TYPE_AIRGAS_DISABLE, seconds, 0)
+#define planner_control_air_enable(seconds) planner_command(TYPE_AIR_ENABLE, seconds, 0)
+#define planner_control_gas_enable(seconds) planner_command(TYPE_GAS_ENABLE, seconds, 0)
+#define planner_control_laser_enable(seconds, intensity) planner_command(TYPE_LASER_ENABLE, seconds, intensity)
+#define planner_control_laser_disable(seconds) planner_command(TYPE_LASER_DISABLE, seconds, 0)
 
 
 // This struct is used when buffering the setup for each linear movement "nominal" values are as specified in 
@@ -53,6 +56,7 @@ typedef struct {
   double entry_speed;                 // Entry speed at previous-current junction in mm/min
   double vmax_junction;               // max junction speed (mm/min) based on angle between segments, accel and deviation settings
   double millimeters;                 // The total travel of this block in mm
+  double dwell_until;                 // number of cycles to dwell in place (not used for TYPE_LINE)
   uint8_t nominal_laser_intensity;    // 0-255 is 0-100% percentage
   bool recalculate_flag;              // Planner flag to recalculate trapezoids on entry junction
   bool nominal_length_flag;           // Planner flag for nominal speed always reached
@@ -72,12 +76,9 @@ void planner_init();
 // the signed, absolute target position in millimaters. Feed rate specifies the speed of the motion.
 void planner_line(double x, double y, double z, double feed_rate, uint8_t nominal_laser_intensity);
 
-// Add a new piercing action, lasing at one spot
-void planner_dwell(double seconds, uint8_t nominal_laser_intensity);
-
 // Add a non-motion command to the queue.
 // Typical types are: TYPE_AIRGAS_DISABLE, TYPE_AIR_ENABLE, TYPE_GAS_ENABLE
-void planner_command(uint8_t type);
+void planner_command(uint8_t type, double seconds, uint8_t nominal_laser_intensity);
 
 
 bool planner_blocks_available();

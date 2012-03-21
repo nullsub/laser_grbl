@@ -65,12 +65,17 @@ void control_init() {
 }
 
 
+
 void control_laser_enable(bool enable) {
   if (enable) {
     LASER_PORT &= ~(1 << LASER_ENABLE_BIT);
   } else {
     LASER_PORT |= (1 << LASER_ENABLE_BIT);
   }
+}
+
+bool control_is_laser_enabled() {
+  return (LASER_PORT >> LASER_ENABLE_BIT) & 1;
 }
 
 void control_laser_intensity(uint8_t intensity) {
