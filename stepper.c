@@ -250,13 +250,15 @@ ISR(TIMER1_COMPA_vect) {
     if (current_block->type == TYPE_LINE) {
       adjusted_rate = current_block->initial_rate;
       tick_counter = CYCLES_PER_ACCELERATION_TICK/2; // start halfway, midpoint rule.
-      adjust_speed( adjusted_rate ); // initialize cycles_per_step_event
+      adjust_speed( adjusted_rate ); // initialize cycles_per_step_event and timer interval
       counter_x = -(current_block->step_event_count >> 1);
       counter_y = counter_x;
       counter_z = counter_x;
       step_events_completed = 0;
     } else {  // TYPE_DWELL, ...
       tick_counter = 0;  // use tick_counter to keep track of dwell time
+      adjust_speed( 6000 ); // set stepper timer resolution to about 10ms (0.01s)
+      control_laser_intensity(current_block->nominal_laser_intensity);
     }
   }
 
@@ -348,12 +350,7 @@ ISR(TIMER1_COMPA_vect) {
       }
       ////////// END OF SPEED ADJUSTMENT
     
-  } else if ( current_block->type == TYPE_DWELL ||
-              current_block->type == TYPE_AIRGAS_DISABLE ||
-              current_block->type == TYPE_AIR_ENABLE ||
-              current_block->type == TYPE_GAS_ENABLE ||
-              current_block->type == TYPE_LASER_ENABLE ||
-              current_block->type == TYPE_LASER_DISABLE ) {
+  } else {  //TYPE_DWELL, TYPE_AIRGAS_DISABLE, TYPE_AIR_ENABLE, ...
       // on first entry do switching based on type
       if (tick_counter == 0) {
         switch (current_block->type) {
@@ -448,8 +445,18 @@ static void adjust_speed( uint32_t steps_per_minute ) {
   if (steps_per_minute < MINIMUM_STEPS_PER_MINUTE) { steps_per_minute = MINIMUM_STEPS_PER_MINUTE; }
   cycles_per_step_event = config_step_timer((CYCLES_PER_MICROSECOND*1000000*60)/steps_per_minute);
 
-  // run at constant intensity for now
-  control_laser_intensity(current_block->nominal_laser_intensity);
+  if (CONFIG_BEAM_DYNAMICS) {
+    double slowdown_pct = steps_per_minute/current_block->nominal_rate;
+    // using y=x^2*d+(1-d) to soften the diminuation (d is CONFIG_BEAM_DIMINUTION).
+    // We could use slowdown_pct directly but this tends to be too aggressive and leads
+    // to corners getting too little power (opposite problem). To get a sense of the
+    // dynamic factor simply graph y=x^2*d+(1-d) for d in [0.0, 1.0]
+    double dynamic_factor = slowdown_pct*slowdown_pct*(CONFIG_BEAM_DIMINUTION)+(1-CONFIG_BEAM_DIMINUTION)
+    control_laser_intensity(current_block->nominal_laser_intensity * dynamic_factor);
+  } else {
+    // run at constant intensity
+    control_laser_intensity(current_block->nominal_laser_intensity);
+  }
 }
 
 
