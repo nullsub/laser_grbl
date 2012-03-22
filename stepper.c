@@ -451,7 +451,7 @@ static void adjust_speed( uint32_t steps_per_minute ) {
     // We could use slowdown_pct directly but this tends to be too aggressive and leads
     // to corners getting too little power (opposite problem). To get a sense of the
     // dynamic factor simply graph y=x^2*d+(1-d) for d in [0.0, 1.0]
-    double dynamic_factor = slowdown_pct*slowdown_pct*(CONFIG_BEAM_DIMINUTION)+(1-CONFIG_BEAM_DIMINUTION)
+    double dynamic_factor = slowdown_pct*slowdown_pct*(CONFIG_BEAM_DIMINUTION)+(1-CONFIG_BEAM_DIMINUTION);
     control_laser_intensity(current_block->nominal_laser_intensity * dynamic_factor);
   } else {
     // run at constant intensity
