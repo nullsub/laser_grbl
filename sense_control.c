@@ -23,6 +23,7 @@
 #include "stepper.h"
 #include "planner.h"
 
+static bool laser_bit_enabled_flag;
 
 
 void sense_init() {
@@ -69,13 +70,16 @@ void control_init() {
 void control_laser_enable(bool enable) {
   if (enable) {
     LASER_PORT &= ~(1 << LASER_ENABLE_BIT);
+    laser_bit_enabled_flag = true;
   } else {
     LASER_PORT |= (1 << LASER_ENABLE_BIT);
+    laser_bit_enabled_flag = false;
   }
 }
 
 bool control_is_laser_enabled() {
-  return (LASER_PORT >> LASER_ENABLE_BIT) & 1;
+  // return (LASER_PORT >> LASER_ENABLE_BIT) & 1;
+  return laser_bit_enabled_flag;
 }
 
 void control_laser_intensity(uint8_t intensity) {

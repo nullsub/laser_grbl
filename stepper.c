@@ -144,6 +144,10 @@ void stepper_go_idle() {
   // Disable stepper driver interrupt
   TIMSK1 &= ~(1<<OCIE1A);
   control_laser_intensity(0);
+  if (CONFIG_USE_LASER_ENABLE_BIT) {
+    // in case a program ends in a G1 
+    control_laser_enable(false);
+  }
 }
 
 // stop processing command blocks on next ISR call
@@ -258,7 +262,9 @@ ISR(TIMER1_COMPA_vect) {
     } else {  // TYPE_DWELL, ...
       tick_counter = 0;  // use tick_counter to keep track of dwell time
       adjust_speed( 6000 ); // set stepper timer resolution to about 10ms (0.01s)
-      control_laser_intensity(current_block->nominal_laser_intensity);
+      if (current_block->type == TYPE_DWELL || current_block->type == TYPE_LASER_ENABLE) {
+        control_laser_intensity(current_block->nominal_laser_intensity);
+      }
     }
   }
 
@@ -351,7 +357,7 @@ ISR(TIMER1_COMPA_vect) {
       }
       ////////// END OF SPEED ADJUSTMENT
     
-  } else {  //TYPE_DWELL, TYPE_AIRGAS_DISABLE, TYPE_AIR_ENABLE, ...
+  } else {  //TYPE_DWELL, TYPE_AIRGAS_DISABLE, ...
       // on first entry do switching based on type
       if (tick_counter == 0) {
         switch (current_block->type) {
