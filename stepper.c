@@ -262,7 +262,7 @@ ISR(TIMER1_COMPA_vect) {
     } else {  // TYPE_DWELL, ...
       tick_counter = 0;  // use tick_counter to keep track of dwell time
       adjust_speed( 6000 ); // set stepper timer resolution to about 10ms (0.01s)
-      if (current_block->type == TYPE_DWELL || current_block->type == TYPE_LASER_ENABLE) {
+      if (current_block->type == TYPE_DWELL) {
         control_laser_intensity(current_block->nominal_laser_intensity);
       }
     }

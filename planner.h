@@ -38,7 +38,7 @@
 #define planner_control_airgas_disable(seconds) planner_command(TYPE_AIRGAS_DISABLE, seconds, 0)
 #define planner_control_air_enable(seconds) planner_command(TYPE_AIR_ENABLE, seconds, 0)
 #define planner_control_gas_enable(seconds) planner_command(TYPE_GAS_ENABLE, seconds, 0)
-#define planner_control_laser_enable(seconds, intensity) planner_command(TYPE_LASER_ENABLE, seconds, intensity)
+#define planner_control_laser_enable(seconds) planner_command(TYPE_LASER_ENABLE, seconds, 0)
 #define planner_control_laser_disable(seconds) planner_command(TYPE_LASER_DISABLE, seconds, 0)
 
 
