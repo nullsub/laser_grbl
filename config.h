@@ -57,7 +57,7 @@
 // With some lasers (e.g. DPSS YAG) this is necessary because they have a high latency when changing
 // the intensity. On/off during G0 seek motions is instead achieved with an optical switch in the
 // resonator which also might have a slight delay; hence the latency config. The firmware can accomodate.
-#define CONFIG_USE_LASER_ENABLE_BIT 0 // whether (0 or 1) to use the laser enable pin on seeks (G0)
+#define CONFIG_USE_LASER_ENABLE_BIT 1 // whether (0 or 1) to use the laser enable pin on seeks (G0)
 #define CONFIG_USE_LASER_ENABLE_LATENCY 0.5 // time (sec) it takes to enable the laser
 
 

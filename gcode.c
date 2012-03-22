@@ -72,6 +72,7 @@ typedef struct {
   double offsets[6];               // coord system offsets {G54_X,G54_Y,G54_Z,G55_X,G55_Y,G55_Z}
   uint8_t offselect;               // currently active offset, 0 -> G54, 1 -> G55
   uint8_t nominal_laser_intensity; // 0-255 percentage
+  uint8_t prev_action;
 } parser_state_t;
 static parser_state_t gc;
 
@@ -100,6 +101,7 @@ void gcode_init() {
   gc.offsets[3+X_AXIS] = CONFIG_X_ORIGIN_OFFSET;
   gc.offsets[3+Y_AXIS] = CONFIG_Y_ORIGIN_OFFSET;
   gc.offsets[3+Z_AXIS] = CONFIG_Z_ORIGIN_OFFSET;
+  gc.prev_action = NEXT_ACTION_NONE;
   position_update_requested = false;
 }
 
@@ -208,6 +210,7 @@ uint8_t gcode_execute_line(char *line) {
   double p = 0.0;
   int cs = 0;
   int l = 0;
+  bool got_actual_line_command = false;  // as opposed to just e.g. G1 F1200
   gc.status_code = STATUS_OK;
     
   //// Pass 1: Commands
@@ -272,6 +275,7 @@ uint8_t gcode_execute_line(char *line) {
         } else {
           target[letter - 'X'] += unit_converted_value;
         }
+        got_actual_line_command = true;
         break;        
       case 'P':  // dwelling seconds or CS selector
         if (next_action == NEXT_ACTION_SET_COORDINATE_OFFSET) {
@@ -295,8 +299,10 @@ uint8_t gcode_execute_line(char *line) {
   //// Perform any physical actions
   switch (next_action) {
     case NEXT_ACTION_SEEK:  // G0
-      if (CONFIG_USE_LASER_ENABLE_BIT) {
-        planner_control_laser_disable(CONFIG_USE_LASER_ENABLE_LATENCY);
+      if (CONFIG_USE_LASER_ENABLE_BIT && got_actual_line_command) {
+        if (gc.prev_action != NEXT_ACTION_SEEK) {        
+          planner_control_laser_disable(CONFIG_USE_LASER_ENABLE_LATENCY);
+        }
         // seek - keep pwm up, laser is disabled via the LASER_ENABLE_BIT
         planner_line( target[X_AXIS] + gc.offsets[3*gc.offselect+X_AXIS], 
                       target[Y_AXIS] + gc.offsets[3*gc.offselect+Y_AXIS], 
@@ -311,7 +317,7 @@ uint8_t gcode_execute_line(char *line) {
       }
       break;   
     case NEXT_ACTION_FEED:  // G1
-      if (CONFIG_USE_LASER_ENABLE_BIT && !control_is_laser_enabled()) {
+      if (CONFIG_USE_LASER_ENABLE_BIT && got_actual_line_command && gc.prev_action != NEXT_ACTION_FEED) {
         // when a new path starts -> enable laser and dwell some time
         planner_control_laser_enable(CONFIG_USE_LASER_ENABLE_LATENCY, gc.nominal_laser_intensity);
       }
@@ -376,6 +382,7 @@ uint8_t gcode_execute_line(char *line) {
   // motion control system might still be processing the action and the real tool position
   // in any intermediate location.
   memcpy(gc.position, target, sizeof(double)*3); // gc.position[] = target[];
+  gc.prev_action = next_action;
   return gc.status_code;
 }
 
