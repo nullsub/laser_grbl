@@ -347,6 +347,7 @@ ISR(TIMER1_COMPA_vect) {
       } else {  // block finished
         current_block = NULL;
         planner_discard_current_block();
+        out_bits = INVERT_MASK;
       }
       ////////// END OF SPEED ADJUSTMENT
     
