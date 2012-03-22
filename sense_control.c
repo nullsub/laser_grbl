@@ -67,9 +67,9 @@ void control_init() {
 
 void control_laser_enable(bool enable) {
   if (enable) {
-    LASER_PORT &= ~(1 << LASER_ENABLE_BIT);
-  } else {
     LASER_PORT |= (1 << LASER_ENABLE_BIT);
+  } else {
+    LASER_PORT &= ~(1 << LASER_ENABLE_BIT);
   }
 }
 
