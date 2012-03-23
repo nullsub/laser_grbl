@@ -301,7 +301,7 @@ uint8_t gcode_execute_line(char *line) {
     case NEXT_ACTION_SEEK:  // G0
       if (CONFIG_USE_LASER_ENABLE_BIT && got_actual_line_command) {
         if (gc.prev_action != NEXT_ACTION_SEEK) {        
-          planner_control_laser_disable(CONFIG_USE_LASER_ENABLE_LATENCY);
+          planner_control_laser_disable(CONFIG_USE_LASER_DISABLE_LATENCY);
         }
         // seek - keep pwm up, laser is disabled via the LASER_ENABLE_BIT
         planner_line( target[X_AXIS] + gc.offsets[3*gc.offselect+X_AXIS], 
@@ -319,7 +319,7 @@ uint8_t gcode_execute_line(char *line) {
     case NEXT_ACTION_FEED:  // G1
       if (CONFIG_USE_LASER_ENABLE_BIT && got_actual_line_command && gc.prev_action != NEXT_ACTION_FEED) {
         // when a new path starts -> enable laser and dwell some time
-        planner_control_laser_enable(CONFIG_USE_LASER_ENABLE_LATENCY);
+        planner_control_laser_enable(CONFIG_USE_LASER_ENABLE_LATENCY, gc.nominal_laser_intensity);
       }
       planner_line( target[X_AXIS] + gc.offsets[3*gc.offselect+X_AXIS], 
                     target[Y_AXIS] + gc.offsets[3*gc.offselect+Y_AXIS], 
@@ -371,7 +371,7 @@ uint8_t gcode_execute_line(char *line) {
       planner_control_gas_enable(p);
       break;
     case NEXT_ACTION_LASER_ENABLE:  // M141
-      planner_control_laser_enable(p);
+      planner_control_laser_enable(p, gc.nominal_laser_intensity);
       break;
     case NEXT_ACTION_LASER_DISABLE:  // M140
       planner_control_laser_disable(p);

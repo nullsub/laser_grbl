@@ -78,7 +78,7 @@ static volatile bool stop_requested;          // when set to true stepper interr
 
 // prototypes for static functions (non-accesible from other files)
 static bool acceleration_tick();
-static void adjust_speed( uint32_t steps_per_minute );
+static void adjust_speed( uint32_t steps_per_minute, bool adjust_laser );
 static uint32_t config_step_timer(uint32_t cycles);
 
 
@@ -104,7 +104,7 @@ void stepper_init() {
   TCCR2B = 0; // Disable timer until needed.
   TIMSK2 |= (1<<TOIE2); // Enable Timer2 interrupt flag
   
-  adjust_speed(MINIMUM_STEPS_PER_MINUTE);
+  adjust_speed(MINIMUM_STEPS_PER_MINUTE, true);
   clear_vector(stepper_position);
   tick_counter = 0;
   current_block = NULL;
@@ -145,7 +145,6 @@ void stepper_go_idle() {
   TIMSK1 &= ~(1<<OCIE1A);
   control_laser_intensity(0);
   if (CONFIG_USE_LASER_ENABLE_BIT) {
-    // in case a program ends in a G1 
     control_laser_enable(false);
   }
 }
@@ -223,6 +222,9 @@ ISR(TIMER1_COMPA_vect) {
     } else if (SENSE_DOOR_OPEN) {
       // printString("door\n");
       // door open -> simply suspend processing
+      if (CONFIG_USE_LASER_ENABLE_BIT) {
+        control_laser_enable(false);
+      }
       busy = false;
       return;
     }
@@ -254,15 +256,15 @@ ISR(TIMER1_COMPA_vect) {
     if (current_block->type == TYPE_LINE) {
       adjusted_rate = current_block->initial_rate;
       tick_counter = CYCLES_PER_ACCELERATION_TICK/2; // start halfway, midpoint rule.
-      adjust_speed( adjusted_rate ); // initialize cycles_per_step_event and timer interval
+      adjust_speed( adjusted_rate, true ); // initialize cycles_per_step_event and timer interval
       counter_x = -(current_block->step_event_count >> 1);
       counter_y = counter_x;
       counter_z = counter_x;
       step_events_completed = 0;
     } else {  // TYPE_DWELL, ...
       tick_counter = 0;  // use tick_counter to keep track of dwell time
-      adjust_speed( 6000 ); // set stepper timer resolution to about 10ms (0.01s)
-      if (current_block->type == TYPE_DWELL) {
+      adjust_speed( 6000, false ); // set stepper timer resolution to about 10ms (0.01s)
+      if (current_block->type == TYPE_DWELL || current_block->type == TYPE_LASER_ENABLE) {
         control_laser_intensity(current_block->nominal_laser_intensity);
       }
     }
@@ -323,7 +325,7 @@ ISR(TIMER1_COMPA_vect) {
             if (adjusted_rate > current_block->nominal_rate) {  // overshot
               adjusted_rate = current_block->nominal_rate;
             }
-            adjust_speed( adjusted_rate );
+            adjust_speed( adjusted_rate, true );
           }
         
         // deceleration start
@@ -339,7 +341,7 @@ ISR(TIMER1_COMPA_vect) {
             if (adjusted_rate < current_block->final_rate) {  // overshot
               adjusted_rate = current_block->final_rate;
             }
-            adjust_speed( adjusted_rate );
+            adjust_speed( adjusted_rate, true );
           }
         
         // cruising
@@ -347,7 +349,7 @@ ISR(TIMER1_COMPA_vect) {
           // No accelerations. Make sure we cruise exactly at the nominal rate.
           if (adjusted_rate != current_block->nominal_rate) {
             adjusted_rate = current_block->nominal_rate;
-            adjust_speed( adjusted_rate );
+            adjust_speed( adjusted_rate, true );
           }
         }
       } else {  // block finished
@@ -448,21 +450,23 @@ static uint32_t config_step_timer(uint32_t cycles) {
 }
 
 
-static void adjust_speed( uint32_t steps_per_minute ) {
+static void adjust_speed( uint32_t steps_per_minute, bool adjust_laser ) {
   if (steps_per_minute < MINIMUM_STEPS_PER_MINUTE) { steps_per_minute = MINIMUM_STEPS_PER_MINUTE; }
   cycles_per_step_event = config_step_timer((CYCLES_PER_MICROSECOND*1000000*60)/steps_per_minute);
 
-  if (CONFIG_BEAM_DYNAMICS) {
-    double slowdown_pct = steps_per_minute/current_block->nominal_rate;
-    // using y=x^2*d+(1-d) to soften the diminuation (d is CONFIG_BEAM_DIMINUTION).
-    // We could use slowdown_pct directly but this tends to be too aggressive and leads
-    // to corners getting too little power (opposite problem). To get a sense of the
-    // dynamic factor simply graph y=x^2*d+(1-d) for d in [0.0, 1.0]
-    double dynamic_factor = slowdown_pct*slowdown_pct*(CONFIG_BEAM_DIMINUTION)+(1-CONFIG_BEAM_DIMINUTION);
-    control_laser_intensity(current_block->nominal_laser_intensity * dynamic_factor);
-  } else {
-    // run at constant intensity
-    control_laser_intensity(current_block->nominal_laser_intensity);
+  if (adjust_laser) {
+    if (CONFIG_BEAM_DYNAMICS) {
+      double slowdown_pct = steps_per_minute/current_block->nominal_rate;
+      // using y=x^2*d+(1-d) to soften the diminuation (d is CONFIG_BEAM_DIMINUTION).
+      // We could use slowdown_pct directly but this tends to be too aggressive and leads
+      // to corners getting too little power (opposite problem). To get a sense of the
+      // dynamic factor simply graph y=x^2*d+(1-d) for d in [0.0, 1.0]
+      double dynamic_factor = slowdown_pct*slowdown_pct*(CONFIG_BEAM_DIMINUTION)+(1-CONFIG_BEAM_DIMINUTION);
+      control_laser_intensity(current_block->nominal_laser_intensity * dynamic_factor);
+    } else {
+      // run at constant intensity
+      control_laser_intensity(current_block->nominal_laser_intensity);
+    }
   }
 }
 
