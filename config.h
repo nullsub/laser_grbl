@@ -24,7 +24,7 @@
 #include <stdbool.h>
 
 
-#define LASAURGRBL_VERSION "v12.02-beta1"
+#define LASAURGRBL_VERSION "v12.02-beta2"
 #define BAUD_RATE 9600
 
 
@@ -39,8 +39,11 @@
 #define CONFIG_X_ORIGIN_OFFSET 5.0  // mm, x-offset of table origin from physical home
 #define CONFIG_Y_ORIGIN_OFFSET 5.0  // mm, y-offset of table origin from physical home
 #define CONFIG_Z_ORIGIN_OFFSET 0.0   // mm, z-offset of table origin from physical home
-#define CONFIG_INVERT_X_AXIS 0  // 0 is regular, 1 inverts the x direction
-#define CONFIG_INVERT_Y_AXIS 0  // 0 is regular, 1 inverts the y direction
+#define CONFIG_INVERT_X_AXIS 1  // 0 is regular, 1 inverts the x direction
+#define CONFIG_INVERT_Y_AXIS 1  // 0 is regular, 1 inverts the y direction
+// alphasurs X_AXIS=1; Y_AXIS=1
+// hypersaur X_AXIS=1; Y_AXIS=0
+// yagersaur X_AXIS=0; Y_AXIS=0
 
 // beam dynamics configuration
 // With these setting the laser intensity can be dynamically adapted to slowdowns
@@ -49,7 +52,7 @@
 // The diminution profile can also be fine-tuned (as a linear mapping is too aggressive).
 // It uses this function: y=x^2*d+(1-d) where d is the diminution severity (0.0 to 1.1).
 // 0.0 is no diminution and anything > 0.7 is more aggresive than linear.
-#define CONFIG_BEAM_DYNAMICS 0  // 0 or 1
+#define CONFIG_BEAM_DYNAMICS 1  // 0 or 1
 #define CONFIG_BEAM_DIMINUTION 0.4
 
 // use laser enable bit
@@ -57,8 +60,8 @@
 // With some lasers (e.g. DPSS YAG) this is necessary because they have a high latency when changing
 // the intensity. On/off during G0 seek motions is instead achieved with an optical switch in the
 // resonator which also might have a slight delay; hence the latency config. The firmware can accomodate.
-#define CONFIG_USE_LASER_ENABLE_BIT 1 // whether (0 or 1) to use the laser enable pin on seeks (G0)
-#define CONFIG_USE_LASER_ENABLE_LATENCY 3 // time (sec) it takes to enable the laser
+#define CONFIG_USE_LASER_ENABLE_BIT 0 // whether (0 or 1) to use the laser enable pin on seeks (G0)
+#define CONFIG_USE_LASER_ENABLE_LATENCY 4 // time (sec) it takes to enable the laser
 #define CONFIG_USE_LASER_DISABLE_LATENCY 0.5 // time (sec) it takes to enable the laser
 
 
