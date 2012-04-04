@@ -24,7 +24,7 @@
 #include <stdbool.h>
 
 
-#define LASAURGRBL_VERSION "v12.02-beta2"
+#define LASAURGRBL_VERSION "v12.03-beta1"
 #define BAUD_RATE 9600
 
 
