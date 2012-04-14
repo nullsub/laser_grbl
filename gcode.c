@@ -43,8 +43,6 @@
 #define NEXT_ACTION_AIRGAS_DISABLE 6
 #define NEXT_ACTION_AIR_ENABLE 7
 #define NEXT_ACTION_GAS_ENABLE 8
-#define NEXT_ACTION_LASER_ENABLE 9
-#define NEXT_ACTION_LASER_DISABLE 10
 
 #define STATUS_OK 0
 #define STATUS_BAD_NUMBER_FORMAT 1
@@ -72,7 +70,6 @@ typedef struct {
   double offsets[6];               // coord system offsets {G54_X,G54_Y,G54_Z,G55_X,G55_Y,G55_Z}
   uint8_t offselect;               // currently active offset, 0 -> G54, 1 -> G55
   uint8_t nominal_laser_intensity; // 0-255 percentage
-  uint8_t prev_action;
 } parser_state_t;
 static parser_state_t gc;
 
@@ -101,7 +98,6 @@ void gcode_init() {
   gc.offsets[3+X_AXIS] = CONFIG_X_ORIGIN_OFFSET;
   gc.offsets[3+Y_AXIS] = CONFIG_Y_ORIGIN_OFFSET;
   gc.offsets[3+Z_AXIS] = CONFIG_Z_ORIGIN_OFFSET;
-  gc.prev_action = NEXT_ACTION_NONE;
   position_update_requested = false;
 }
 
@@ -206,11 +202,10 @@ uint8_t gcode_execute_line(char *line) {
   int int_value;
   double unit_converted_value;  
   uint8_t next_action = NEXT_ACTION_NONE;
-  double target[3];  
-  double p = 0.0;
+  double target[3], offset[3];  
+  double p = 0;
   int cs = 0;
   int l = 0;
-  bool got_actual_line_command = false;  // as opposed to just e.g. G1 F1200
   gc.status_code = STATUS_OK;
     
   //// Pass 1: Commands
@@ -238,8 +233,6 @@ uint8_t gcode_execute_line(char *line) {
           case 7: next_action = NEXT_ACTION_AIR_ENABLE;break;
           case 8: next_action = NEXT_ACTION_GAS_ENABLE;break;
           case 9: next_action = NEXT_ACTION_AIRGAS_DISABLE;break;
-          case 140: next_action = NEXT_ACTION_LASER_DISABLE;break;
-          case 141: next_action = NEXT_ACTION_LASER_ENABLE;break;
           default: FAIL(STATUS_UNSUPPORTED_STATEMENT);
         }            
         break;
@@ -251,6 +244,8 @@ uint8_t gcode_execute_line(char *line) {
   if (gc.status_code) { return gc.status_code; }
 
   char_counter = 0;
+  clear_vector(target);
+  clear_vector(offset);
   memcpy(target, gc.position, sizeof(target)); // i.e. target = gc.position
 
   //// Pass 2: Parameters
@@ -275,7 +270,6 @@ uint8_t gcode_execute_line(char *line) {
         } else {
           target[letter - 'X'] += unit_converted_value;
         }
-        got_actual_line_command = true;
         break;        
       case 'P':  // dwelling seconds or CS selector
         if (next_action == NEXT_ACTION_SET_COORDINATE_OFFSET) {
@@ -298,38 +292,37 @@ uint8_t gcode_execute_line(char *line) {
       
   //// Perform any physical actions
   switch (next_action) {
-    case NEXT_ACTION_SEEK:  // G0
-      if (CONFIG_USE_LASER_ENABLE_BIT && got_actual_line_command) {
-        if (gc.prev_action != NEXT_ACTION_SEEK) {        
-          planner_control_laser_disable(CONFIG_USE_LASER_DISABLE_LATENCY);
-        }
-        // seek - keep pwm up, laser is disabled via the LASER_ENABLE_BIT
-        planner_line( target[X_AXIS] + gc.offsets[3*gc.offselect+X_AXIS], 
-                      target[Y_AXIS] + gc.offsets[3*gc.offselect+Y_AXIS], 
-                      target[Z_AXIS] + gc.offsets[3*gc.offselect+Z_AXIS], 
-                      gc.seek_rate, gc.nominal_laser_intensity );        
-      } else {
-        // seek - turn pwm down
-        planner_line( target[X_AXIS] + gc.offsets[3*gc.offselect+X_AXIS], 
-                      target[Y_AXIS] + gc.offsets[3*gc.offselect+Y_AXIS], 
-                      target[Z_AXIS] + gc.offsets[3*gc.offselect+Z_AXIS], 
-                      gc.seek_rate, 0 );
-      }
+    case NEXT_ACTION_SEEK:
+      planner_line( target[X_AXIS] + gc.offsets[3*gc.offselect+X_AXIS], 
+                    target[Y_AXIS] + gc.offsets[3*gc.offselect+Y_AXIS], 
+                    target[Z_AXIS] + gc.offsets[3*gc.offselect+Z_AXIS], 
+                    gc.seek_rate, 0 );
       break;   
-    case NEXT_ACTION_FEED:  // G1
-      if (CONFIG_USE_LASER_ENABLE_BIT && got_actual_line_command && gc.prev_action != NEXT_ACTION_FEED) {
-        // when a new path starts -> enable laser and dwell some time
-        planner_control_laser_enable(CONFIG_USE_LASER_ENABLE_LATENCY, gc.nominal_laser_intensity);
-      }
+    case NEXT_ACTION_FEED:
       planner_line( target[X_AXIS] + gc.offsets[3*gc.offselect+X_AXIS], 
                     target[Y_AXIS] + gc.offsets[3*gc.offselect+Y_AXIS], 
                     target[Z_AXIS] + gc.offsets[3*gc.offselect+Z_AXIS], 
                     gc.feed_rate, gc.nominal_laser_intensity );                   
       break; 
-    case NEXT_ACTION_DWELL:  // G4
+    case NEXT_ACTION_DWELL:
       planner_dwell(p, gc.nominal_laser_intensity);
       break;
-    case NEXT_ACTION_HOMING_CYCLE:  // G30
+    // case NEXT_ACTION_STOP:
+    //   planner_stop();  // stop and cancel the remaining program
+    //   gc.position[X_AXIS] = stepper_get_position_x();
+    //   gc.position[Y_AXIS] = stepper_get_position_y();
+    //   gc.position[Z_AXIS] = stepper_get_position_z();
+    //   planner_set_position(gc.position[X_AXIS], gc.position[Y_AXIS], gc.position[Z_AXIS]);
+    //   // move to table origin
+    //   target[X_AXIS] = 0;
+    //   target[Y_AXIS] = 0;
+    //   target[Z_AXIS] = 0;         
+    //   planner_line( target[X_AXIS] + gc.offsets[3*gc.offselect+X_AXIS], 
+    //                 target[Y_AXIS] + gc.offsets[3*gc.offselect+Y_AXIS], 
+    //                 target[Z_AXIS] + gc.offsets[3*gc.offselect+Z_AXIS], 
+    //                 gc.seek_rate, 0 );
+    //   break;
+    case NEXT_ACTION_HOMING_CYCLE:
       stepper_homing_cycle();
       // now that we are at the physical home
       // zero all the position vectors
@@ -346,7 +339,7 @@ uint8_t gcode_execute_line(char *line) {
                     target[Z_AXIS] + gc.offsets[3*gc.offselect+Z_AXIS], 
                     gc.seek_rate, 0 );
       break;
-    case NEXT_ACTION_SET_COORDINATE_OFFSET:  // G10
+    case NEXT_ACTION_SET_COORDINATE_OFFSET:
       if (cs == OFFSET_G54 || cs == OFFSET_G55) {
         if (l == 2) {
           //set offset to target, eg: G10 L2 P1 X15 Y15 Z0
@@ -361,28 +354,21 @@ uint8_t gcode_execute_line(char *line) {
         }
       }
       break;
-    case NEXT_ACTION_AIRGAS_DISABLE:  // M9
-      planner_control_airgas_disable(p);
+    case NEXT_ACTION_AIRGAS_DISABLE:
+      planner_control_airgas_disable();
       break;
-    case NEXT_ACTION_AIR_ENABLE:  // M7
-      planner_control_air_enable(p);
+    case NEXT_ACTION_AIR_ENABLE:
+      planner_control_air_enable();
       break;
-    case NEXT_ACTION_GAS_ENABLE:  // M8
-      planner_control_gas_enable(p);
+    case NEXT_ACTION_GAS_ENABLE:
+      planner_control_gas_enable();
       break;
-    case NEXT_ACTION_LASER_ENABLE:  // M141
-      planner_control_laser_enable(p, gc.nominal_laser_intensity);
-      break;
-    case NEXT_ACTION_LASER_DISABLE:  // M140
-      planner_control_laser_disable(p);
-      break;      
   }
   
   // As far as the parser is concerned, the position is now == target. In reality the
   // motion control system might still be processing the action and the real tool position
   // in any intermediate location.
   memcpy(gc.position, target, sizeof(double)*3); // gc.position[] = target[];
-  gc.prev_action = next_action;
   return gc.status_code;
 }
 

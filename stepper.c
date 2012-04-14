@@ -70,15 +70,16 @@ static volatile uint8_t busy;  // true whe stepper ISR is in already running
 
 // Variables used by the trapezoid generation
 static uint32_t cycles_per_step_event;        // The number of machine cycles between each step event
-static uint32_t tick_counter;                 // The cycles since last speed change.
+static uint32_t acceleration_tick_counter;    // The cycles since last acceleration_tick.
                                               // Used to generate ticks at a steady pace without allocating a separate timer.
 static uint32_t adjusted_rate;                // The current rate of step_events according to the speed profile
 static bool processing_flag;                  // indicates if blocks are being processed
 static volatile bool stop_requested;          // when set to true stepper interrupt will go idle on next entry
 
+
 // prototypes for static functions (non-accesible from other files)
 static bool acceleration_tick();
-static void adjust_speed( uint32_t steps_per_minute, bool adjust_laser );
+static void adjust_speed( uint32_t steps_per_minute );
 static uint32_t config_step_timer(uint32_t cycles);
 
 
@@ -104,9 +105,9 @@ void stepper_init() {
   TCCR2B = 0; // Disable timer until needed.
   TIMSK2 |= (1<<TOIE2); // Enable Timer2 interrupt flag
   
-  adjust_speed(MINIMUM_STEPS_PER_MINUTE, true);
+  adjust_speed(MINIMUM_STEPS_PER_MINUTE);
   clear_vector(stepper_position);
-  tick_counter = 0;
+  acceleration_tick_counter = 0;
   current_block = NULL;
   stop_requested = false;
   busy = false;
@@ -144,9 +145,6 @@ void stepper_go_idle() {
   // Disable stepper driver interrupt
   TIMSK1 &= ~(1<<OCIE1A);
   control_laser_intensity(0);
-  if (CONFIG_USE_LASER_ENABLE_BIT) {
-    control_laser_enable(false);
-  }
 }
 
 // stop processing command blocks on next ISR call
@@ -222,9 +220,6 @@ ISR(TIMER1_COMPA_vect) {
     } else if (SENSE_DOOR_OPEN) {
       // printString("door\n");
       // door open -> simply suspend processing
-      if (CONFIG_USE_LASER_ENABLE_BIT) {
-        control_laser_enable(false);
-      }
       busy = false;
       return;
     }
@@ -251,28 +246,21 @@ ISR(TIMER1_COMPA_vect) {
       stepper_go_idle();
       busy = false;
       return;       
-    }
-    // event - starting new block 
-    if (current_block->type == TYPE_LINE) {
+    }      
+    if (current_block->type == TYPE_LINE) {  // starting on new line block
       adjusted_rate = current_block->initial_rate;
-      tick_counter = CYCLES_PER_ACCELERATION_TICK/2; // start halfway, midpoint rule.
-      adjust_speed( adjusted_rate, true ); // initialize cycles_per_step_event and timer interval
+      acceleration_tick_counter = CYCLES_PER_ACCELERATION_TICK/2; // start halfway, midpoint rule.
+      adjust_speed( adjusted_rate ); // initialize cycles_per_step_event
       counter_x = -(current_block->step_event_count >> 1);
       counter_y = counter_x;
       counter_z = counter_x;
       step_events_completed = 0;
-    } else {  // TYPE_DWELL, ...
-      tick_counter = 0;  // use tick_counter to keep track of dwell time
-      adjust_speed( 6000, false ); // set stepper timer resolution to about 10ms (0.01s)
-      if (current_block->type == TYPE_DWELL || current_block->type == TYPE_LASER_ENABLE) {
-        control_laser_intensity(current_block->nominal_laser_intensity);
-      }
     }
   }
 
-  //// process current block, populate out_bits (or handle other commands) ////
-  
-  if (current_block->type == TYPE_LINE) {
+  // process current block, populate out_bits (or handle other commands)
+  switch (current_block->type) {
+    case TYPE_LINE:
       ////// Execute step displacement profile by bresenham line algorithm
       out_bits = current_block->direction_bits;
       counter_x += current_block->steps_x;
@@ -325,14 +313,14 @@ ISR(TIMER1_COMPA_vect) {
             if (adjusted_rate > current_block->nominal_rate) {  // overshot
               adjusted_rate = current_block->nominal_rate;
             }
-            adjust_speed( adjusted_rate, true );
+            adjust_speed( adjusted_rate );
           }
         
         // deceleration start
         } else if (step_events_completed == current_block->decelerate_after) {
             // reset counter, midpoint rule
             // makes sure deceleration is performed the same every time
-            tick_counter = CYCLES_PER_ACCELERATION_TICK/2;
+            acceleration_tick_counter = CYCLES_PER_ACCELERATION_TICK/2;
                  
         // decelerating
         } else if (step_events_completed >= current_block->decelerate_after) {
@@ -341,7 +329,7 @@ ISR(TIMER1_COMPA_vect) {
             if (adjusted_rate < current_block->final_rate) {  // overshot
               adjusted_rate = current_block->final_rate;
             }
-            adjust_speed( adjusted_rate, true );
+            adjust_speed( adjusted_rate );
           }
         
         // cruising
@@ -349,45 +337,35 @@ ISR(TIMER1_COMPA_vect) {
           // No accelerations. Make sure we cruise exactly at the nominal rate.
           if (adjusted_rate != current_block->nominal_rate) {
             adjusted_rate = current_block->nominal_rate;
-            adjust_speed( adjusted_rate, true );
+            adjust_speed( adjusted_rate );
           }
         }
       } else {  // block finished
         current_block = NULL;
         planner_discard_current_block();
-        out_bits = INVERT_MASK;
       }
       ////////// END OF SPEED ADJUSTMENT
     
-  } else {  //TYPE_DWELL, TYPE_AIRGAS_DISABLE, ...
-      // on first entry do switching based on type
-      if (tick_counter == 0) {
-        switch (current_block->type) {
-          case TYPE_AIRGAS_DISABLE:
-            control_air(false);
-            control_gas(false);
-            break;
-          case TYPE_AIR_ENABLE:
-            control_air(true);
-            break;
-          case TYPE_GAS_ENABLE:
-            control_gas(true);
-            break;
-          case TYPE_LASER_ENABLE:
-            control_laser_enable(true);
-            break;
-          case TYPE_LASER_DISABLE:
-            control_laser_enable(false);
-            break;
-        }      
-      }
-      // keep track of time
-      tick_counter += cycles_per_step_event;
-      // finalize when dwell time is over
-      if(tick_counter > current_block->dwell_until) {
-        current_block = NULL;
-        planner_discard_current_block(); 
-      }  // else reenter and increase tick_counter until dwell time over
+      break; 
+
+    case TYPE_AIRGAS_DISABLE:
+      control_air(false);
+      control_gas(false);
+      current_block = NULL;
+      planner_discard_current_block();  
+      break;
+
+    case TYPE_AIR_ENABLE:
+      control_air(true);
+      current_block = NULL;
+      planner_discard_current_block();  
+      break;
+
+    case TYPE_GAS_ENABLE:
+      control_gas(true);
+      current_block = NULL;
+      planner_discard_current_block();  
+      break;      
   }
   
   busy = false;
@@ -400,9 +378,9 @@ ISR(TIMER1_COMPA_vect) {
 // keeping track of the number of elapsed cycles during a de/ac-celeration. The code assumes that
 // step_events occur significantly more often than the acceleration velocity iterations.
 static bool acceleration_tick() {
-  tick_counter += cycles_per_step_event;
-  if(tick_counter > CYCLES_PER_ACCELERATION_TICK) {
-    tick_counter -= CYCLES_PER_ACCELERATION_TICK;
+  acceleration_tick_counter += cycles_per_step_event;
+  if(acceleration_tick_counter > CYCLES_PER_ACCELERATION_TICK) {
+    acceleration_tick_counter -= CYCLES_PER_ACCELERATION_TICK;
     return true;
   } else {
     return false;
@@ -450,24 +428,12 @@ static uint32_t config_step_timer(uint32_t cycles) {
 }
 
 
-static void adjust_speed( uint32_t steps_per_minute, bool adjust_laser ) {
+static void adjust_speed( uint32_t steps_per_minute ) {
   if (steps_per_minute < MINIMUM_STEPS_PER_MINUTE) { steps_per_minute = MINIMUM_STEPS_PER_MINUTE; }
   cycles_per_step_event = config_step_timer((CYCLES_PER_MICROSECOND*1000000*60)/steps_per_minute);
 
-  if (adjust_laser) {
-    if (CONFIG_BEAM_DYNAMICS) {
-      double slowdown_pct = steps_per_minute/current_block->nominal_rate;
-      // using y=x^2*d+(1-d) to soften the diminuation (d is CONFIG_BEAM_DIMINUTION).
-      // We could use slowdown_pct directly but this tends to be too aggressive and leads
-      // to corners getting too little power (opposite problem). To get a sense of the
-      // dynamic factor simply graph y=x^2*d+(1-d) for d in [0.0, 1.0]
-      double dynamic_factor = slowdown_pct*slowdown_pct*(CONFIG_BEAM_DIMINUTION)+(1-CONFIG_BEAM_DIMINUTION);
-      control_laser_intensity(current_block->nominal_laser_intensity * dynamic_factor);
-    } else {
-      // run at constant intensity
-      control_laser_intensity(current_block->nominal_laser_intensity);
-    }
-  }
+  // run at constant intensity for now
+  control_laser_intensity(current_block->nominal_laser_intensity);
 }
 
 

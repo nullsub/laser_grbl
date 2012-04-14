@@ -17,6 +17,10 @@ Grbl - An embedded g-code interpreter and motion-controller for the Arduino/AVR3
 For more information [on Grbl](https://github.com/simen/grbl)
 
 
+TODO
+------
+- g55 wrong offset
+- homing cycle cannot recover out of bounds when limit already triggering
 
 mbed merger notes
 ------------------
@@ -58,10 +62,9 @@ Coordinate Systems
   
 stop, pause, resume
 --------------------
-stop on: power, chiller, limit, '!' command
-resume from stop: '~' command
-pause on: door open
-resume from pause: door close
+stop on: power, chiller, limit, \03 control char
+stop resume on: \02 control char
+pause on: door, resume on door close
 
 
 

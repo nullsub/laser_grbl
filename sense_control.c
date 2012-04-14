@@ -24,6 +24,7 @@
 #include "planner.h"
 
 
+
 void sense_init() {
   //// power, chiller, door
   SENSE_DDR &= ~(SENSE_MASK);  // set as input pins 
@@ -48,10 +49,6 @@ void control_init() {
   TCCR0A |= (1 << WGM00);   // set phase correct PWM mode, has half the freq of fast PWM
   TCCR0B |= (1 << CS00);    // prescaler to 1, PWMfreq = 16000/(2*256*1) = 31.25kH
   
-  //// laser enable/disable pin
-  LASER_DDR |= (1 << LASER_ENABLE_BIT);  // set as output pin
-  control_laser_enable(false);
-  
   //// air and gas assist control
   AIRGAS_DDR |= (1 << AIR_BIT);  // set as output pin
   AIRGAS_DDR |= (1 << GAS_BIT);  // set as output pin
@@ -63,15 +60,6 @@ void control_init() {
   control_limits_overwrite(true);  // do not use hardware logic to stop steppers    
 }
 
-
-
-void control_laser_enable(bool enable) {
-  if (enable) {
-    LASER_PORT |= (1 << LASER_ENABLE_BIT);
-  } else {
-    LASER_PORT &= ~(1 << LASER_ENABLE_BIT);
-  }
-}
 
 void control_laser_intensity(uint8_t intensity) {
   OCR0A = intensity;

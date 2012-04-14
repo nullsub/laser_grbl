@@ -195,14 +195,21 @@ void planner_line(double x, double y, double z, double feed_rate, uint8_t nomina
 }
 
 
+void planner_dwell(double seconds, uint8_t nominal_laser_intensity) {
+// // Execute dwell in seconds. Maximum time delay is > 18 hours, more than enough for any application.
+// void mc_dwell(double seconds) {
+//    uint16_t i = floor(seconds);
+//    stepper_synchronize();
+//    _delay_ms(floor(1000*(seconds-i))); // Delay millisecond remainder
+//    while (i > 0) {
+//      _delay_ms(1000); // Delay one second
+//      i--;
+//    }
+// }  
+}
 
-// Add a new control and/or dwell command to the queue.
-// These commands can control a GPIO and then dwell for a bit. This is useful when
-// the hardware being switch has some delay. Alternatively by passing TYPE_DWELL the
-// switching part can be omitted and simply a dwell can be scheduled. When doing this
-// with a laser intensity !=0 this is effectively a piercing action.
-// Note: any command (even when dwell time is 0) causes the planner to fully decelerate.
-void planner_command(uint8_t type, double seconds, uint8_t nominal_laser_intensity) {
+
+void planner_command(uint8_t type) {
   // calculate the buffer head and check for space
   int next_buffer_head = next_block_index( block_buffer_head );	
   while(block_buffer_tail == next_buffer_head) {  // buffer full condition
@@ -215,25 +222,7 @@ void planner_command(uint8_t type, double seconds, uint8_t nominal_laser_intensi
 
   // set block type command
   block->type = type;
-  
-  // set dwell time in cycles
-  block->dwell_until = seconds * F_CPU;
-  
-  // set block fields so planner calculates a correct 
-  // acceleration profiles for the adjacent blocks
-  block->nominal_laser_intensity = nominal_laser_intensity;
-  block->direction_bits = 0;
-  block->steps_x = 0;
-  block->steps_y = 0;
-  block->steps_z = 0;
-  block->step_event_count = 0;
-  block->millimeters = 0.0;
-  block->nominal_speed = 0.0001;  //must be > 0 ?
-  block->nominal_rate = 0;
-  block->rate_delta = 1;  // must be > 0 ?
-  block->vmax_junction = ZERO_SPEED;
-  block->entry_speed = 0.0;  
-  
+
   // Move buffer head
   block_buffer_head = next_buffer_head;
 
