@@ -50,10 +50,10 @@
 // resulting from de/acceleration phases. The stepper driver code looks at the ratio
 // of actual to nominal speed and uses this to also reduce the nominal laser intensity.
 // The diminution profile can also be fine-tuned (as a linear mapping is too aggressive).
-// It uses this function: y=x^2*d+(1-d) where d is the diminution severity (0.0 to 1.1).
+// It uses this function: y=x^2*d+(1-d) where d is the diminution severity (0.0 to 1.0).
 // 0.0 is no diminution and anything > 0.7 is more aggresive than linear.
 #define CONFIG_BEAM_DYNAMICS 1  // 0 or 1
-#define CONFIG_BEAM_DIMINUTION 0.4
+#define CONFIG_BEAM_DIMINUTION 0.3
 
 // use laser enable bit
 // This uses the LASER_ENABLE_BIT to switch the laser  instead of just setting the intensity to 0.
