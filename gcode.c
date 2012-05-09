@@ -201,7 +201,7 @@ uint8_t gcode_execute_line(char *line) {
   double unit_converted_value;  
   uint8_t next_action = NEXT_ACTION_NONE;
   double target[3], offset[3];  
-  double p = 0;
+  double p = 0.0;
   int cs = 0;
   int l = 0;
   gc.status_code = STATUS_OK;
@@ -242,8 +242,6 @@ uint8_t gcode_execute_line(char *line) {
   if (gc.status_code) { return gc.status_code; }
 
   char_counter = 0;
-  clear_vector(target);
-  clear_vector(offset);
   memcpy(target, gc.position, sizeof(target)); // i.e. target = gc.position
 
   //// Pass 2: Parameters
@@ -344,11 +342,19 @@ uint8_t gcode_execute_line(char *line) {
           gc.offsets[3*cs+X_AXIS] = target[X_AXIS];
           gc.offsets[3*cs+Y_AXIS] = target[Y_AXIS];
           gc.offsets[3*cs+Z_AXIS] = target[Z_AXIS];
+          // Set target in ref to new coord system so subsequent moves are calculated correctly.
+          target[X_AXIS] = (gc.position[X_AXIS] + gc.offsets[3*gc.offselect+X_AXIS]) - gc.offsets[3*cs+X_AXIS];
+          target[Y_AXIS] = (gc.position[Y_AXIS] + gc.offsets[3*gc.offselect+Y_AXIS]) - gc.offsets[3*cs+Y_AXIS];
+          target[Z_AXIS] = (gc.position[Z_AXIS] + gc.offsets[3*gc.offselect+Z_AXIS]) - gc.offsets[3*cs+Z_AXIS];
+          
         } else if (l == 20) {
           // set offset to current pos, eg: G10 L20 P2
           gc.offsets[3*cs+X_AXIS] = gc.position[X_AXIS] + gc.offsets[3*gc.offselect+X_AXIS];
           gc.offsets[3*cs+Y_AXIS] = gc.position[Y_AXIS] + gc.offsets[3*gc.offselect+Y_AXIS];
-          gc.offsets[3*cs+Z_AXIS] = gc.position[Z_AXIS] + gc.offsets[3*gc.offselect+Z_AXIS];        
+          gc.offsets[3*cs+Z_AXIS] = gc.position[Z_AXIS] + gc.offsets[3*gc.offselect+Z_AXIS];
+          target[X_AXIS] = 0;
+          target[Y_AXIS] = 0;
+          target[Z_AXIS] = 0;                 
         }
       }
       break;
