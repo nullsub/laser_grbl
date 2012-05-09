@@ -44,12 +44,6 @@
 #define NEXT_ACTION_AIR_ENABLE 7
 #define NEXT_ACTION_GAS_ENABLE 8
 
-#define STATUS_OK 0
-#define STATUS_BAD_NUMBER_FORMAT 1
-#define STATUS_EXPECTED_COMMAND_LETTER 2
-#define STATUS_UNSUPPORTED_STATEMENT 3
-#define STATUS_FLOATING_POINT_ERROR 4
-#define STATUS_STOP_STATE_ERROR 5
 
 #define OFFSET_G54 0
 #define OFFSET_G55 1
@@ -146,7 +140,7 @@ void gcode_process_line() {
     }
     
     if (stepper_stop_requested()) {
-      status_code = STATUS_STOP_STATE_ERROR;
+      status_code = stepper_stop_status();
     } else if (rx_line[0] == '$') {
       printPgmString(PSTR("\nLasaurGrbl " LASAURGRBL_VERSION));
       printPgmString(PSTR("\nSee config.h for configuration.\n"));
@@ -180,8 +174,12 @@ void gcode_process_line() {
         printPgmString(PSTR("Error: Unsupported statement\n")); break;
       case STATUS_FLOATING_POINT_ERROR:
         printPgmString(PSTR("Error: Floating point error\n")); break;
-      case STATUS_STOP_STATE_ERROR:
-        printPgmString(PSTR("Error: Stopped\n")); break;
+      case STATUS_STOP_POWER_OFF:
+        printPgmString(PSTR("Error: Power Off\n")); break;
+      case STATUS_STOP_CHILLER_OFF:
+        printPgmString(PSTR("Error: Chiller Off\n")); break;
+      case STATUS_STOP_LIMIT_HIT:
+        printPgmString(PSTR("Error: Limit Hit\n")); break;                    
       default:
         printPgmString(PSTR("Error: "));
         printInteger(status_code);

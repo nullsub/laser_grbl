@@ -27,6 +27,7 @@
 #include "serial.h"
 #include "config.h"
 #include "stepper.h"
+#include "gcode.h"
 
 
 #define RX_BUFFER_SIZE 192
@@ -147,7 +148,7 @@ SIGNAL(USART_RX_vect) {
 	uint8_t data = UDR0;
 	if (data == CHAR_STOP) {
 	  // special stop character, bypass buffer
-    stepper_request_stop();
+    stepper_request_stop(STATUS_STOP_SERIAL_REQUEST);
 	} else if (data == CHAR_RESUME) {
 	  // special resume character, bypass buffer
     stepper_resume();

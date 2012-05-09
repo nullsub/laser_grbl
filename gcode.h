@@ -25,6 +25,16 @@
 #include <avr/io.h>
 #include <avr/pgmspace.h>
 
+#define STATUS_OK 0
+#define STATUS_BAD_NUMBER_FORMAT 1
+#define STATUS_EXPECTED_COMMAND_LETTER 2
+#define STATUS_UNSUPPORTED_STATEMENT 3
+#define STATUS_FLOATING_POINT_ERROR 4
+#define STATUS_STOP_SERIAL_REQUEST 5
+#define STATUS_STOP_POWER_OFF 6
+#define STATUS_STOP_CHILLER_OFF 7
+#define STATUS_STOP_LIMIT_HIT 8
+
 
 // Initialize the parser
 void gcode_init();

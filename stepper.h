@@ -44,8 +44,9 @@ void stepper_go_idle();
 
 // makes sure steppers are forced stepper_go_idle()
 // at the beginning of the stepper interrupt
-void stepper_request_stop();
+void stepper_request_stop(uint8_t status);
 bool stepper_stop_requested();
+uint8_t stepper_stop_status();
 void stepper_resume();
 
 // Get the actual position of the head in mm.

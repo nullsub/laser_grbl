@@ -75,6 +75,7 @@ static uint32_t acceleration_tick_counter;    // The cycles since last accelerat
 static uint32_t adjusted_rate;                // The current rate of step_events according to the speed profile
 static bool processing_flag;                  // indicates if blocks are being processed
 static volatile bool stop_requested;          // when set to true stepper interrupt will go idle on next entry
+static volatile uint8_t stop_status;          // yields the reason for a stop request
 
 
 // prototypes for static functions (non-accesible from other files)
@@ -110,6 +111,7 @@ void stepper_init() {
   acceleration_tick_counter = 0;
   current_block = NULL;
   stop_requested = false;
+  stop_status = STATUS_OK;
   busy = false;
   
   // start in the idle state
@@ -147,13 +149,18 @@ void stepper_go_idle() {
   control_laser_intensity(0);
 }
 
-// stop processing command blocks on next ISR call
-void stepper_request_stop() {
+// stop processing command blocks, absorb serial data
+void stepper_request_stop(uint8_t status) {
+  stop_status = status;
   stop_requested = true;
 }
 
 bool stepper_stop_requested() {
   return stop_requested;
+}
+
+uint8_t stepper_stop_status() {
+  return stop_status;
 }
 
 void stepper_resume() {
@@ -210,20 +217,21 @@ ISR(TIMER1_COMPA_vect) {
   }
   
   if (SENSE_ANY) {
-    // no power (e-stop), no chiller, door open, limit switch situation
-    if (SENSE_POWER_OFF || SENSE_CHILLER_OFF || SENSE_LIMITS) {
-      // printString("sense\n");
-      // stop program
-      stepper_request_stop();
-      busy = false;
-      return;
-    } else if (SENSE_DOOR_OPEN) {
-      // printString("door\n");
-      // door open -> simply suspend processing
-      busy = false;
-      return;
+    // stop/pause program
+    if (SENSE_LIMITS) {
+      stepper_request_stop(STATUS_STOP_LIMIT_HIT);
+    } else if (SENSE_CHILLER_OFF) {
+      stepper_request_stop(STATUS_STOP_CHILLER_OFF);
+    } else if (SENSE_POWER_OFF) {
+      stepper_request_stop(STATUS_STOP_POWER_OFF);
+    } else if(SENSE_DOOR_OPEN) {
+      // no stop request
+      // simply suspend processing
     }
+    busy = false;
+    return;    
   }
+
   
   // pulse steppers
   STEPPING_PORT = (STEPPING_PORT & ~DIRECTION_MASK) | (out_bits & DIRECTION_MASK);
