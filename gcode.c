@@ -200,7 +200,7 @@ uint8_t gcode_execute_line(char *line) {
   int int_value;
   double unit_converted_value;  
   uint8_t next_action = NEXT_ACTION_NONE;
-  double target[3], offset[3];  
+  double target[3];
   double p = 0.0;
   int cs = 0;
   int l = 0;
