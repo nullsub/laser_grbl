@@ -204,6 +204,7 @@ uint8_t gcode_execute_line(char *line) {
   double p = 0.0;
   int cs = 0;
   int l = 0;
+  bool got_actual_line_command = false;  // as opposed to just e.g. G1 F1200
   gc.status_code = STATUS_OK;
     
   //// Pass 1: Commands
@@ -266,6 +267,7 @@ uint8_t gcode_execute_line(char *line) {
         } else {
           target[letter - 'X'] += unit_converted_value;
         }
+        got_actual_line_command = true;
         break;        
       case 'P':  // dwelling seconds or CS selector
         if (next_action == NEXT_ACTION_SET_COORDINATE_OFFSET) {
@@ -289,16 +291,20 @@ uint8_t gcode_execute_line(char *line) {
   //// Perform any physical actions
   switch (next_action) {
     case NEXT_ACTION_SEEK:
-      planner_line( target[X_AXIS] + gc.offsets[3*gc.offselect+X_AXIS], 
-                    target[Y_AXIS] + gc.offsets[3*gc.offselect+Y_AXIS], 
-                    target[Z_AXIS] + gc.offsets[3*gc.offselect+Z_AXIS], 
-                    gc.seek_rate, 0 );
+      if (got_actual_line_command) {
+        planner_line( target[X_AXIS] + gc.offsets[3*gc.offselect+X_AXIS], 
+                      target[Y_AXIS] + gc.offsets[3*gc.offselect+Y_AXIS], 
+                      target[Z_AXIS] + gc.offsets[3*gc.offselect+Z_AXIS], 
+                      gc.seek_rate, 0 );
+      }
       break;   
     case NEXT_ACTION_FEED:
-      planner_line( target[X_AXIS] + gc.offsets[3*gc.offselect+X_AXIS], 
-                    target[Y_AXIS] + gc.offsets[3*gc.offselect+Y_AXIS], 
-                    target[Z_AXIS] + gc.offsets[3*gc.offselect+Z_AXIS], 
-                    gc.feed_rate, gc.nominal_laser_intensity );                   
+      if (got_actual_line_command) {
+        planner_line( target[X_AXIS] + gc.offsets[3*gc.offselect+X_AXIS], 
+                      target[Y_AXIS] + gc.offsets[3*gc.offselect+Y_AXIS], 
+                      target[Z_AXIS] + gc.offsets[3*gc.offselect+Z_AXIS], 
+                      gc.feed_rate, gc.nominal_laser_intensity );                   
+      }
       break; 
     case NEXT_ACTION_DWELL:
       planner_dwell(p, gc.nominal_laser_intensity);
