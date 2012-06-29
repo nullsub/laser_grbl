@@ -69,17 +69,17 @@ void control_laser_intensity(uint8_t intensity) {
 
 void control_air(bool enable) {
   if (enable) {
-    AIRGAS_PORT &= ~(1 << AIR_BIT);
-  } else {
     AIRGAS_PORT |= (1 << AIR_BIT);
+  } else {
+    AIRGAS_PORT &= ~(1 << AIR_BIT);
   }
 }
 
 void control_gas(bool enable) {
   if (enable) {
-    AIRGAS_PORT &= ~(1 << GAS_BIT);
-  } else {
     AIRGAS_PORT |= (1 << GAS_BIT);
+  } else {
+    AIRGAS_PORT &= ~(1 << GAS_BIT);
   }  
 }
 
