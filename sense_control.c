@@ -15,8 +15,7 @@
   GNU General Public License for more details.
 */
 
-#include <avr/io.h>
-#include <util/delay.h>
+#include "dev_misc.h"
 #include <math.h>
 #include <stdlib.h>
 #include "sense_control.h"
@@ -26,17 +25,21 @@
 
 
 void sense_init() {
+/*
   //// power, chiller, door
-  SENSE_DDR &= ~(SENSE_MASK);  // set as input pins 
+		 SENSE_DDR &= ~(SENSE_MASK);  // set as input pins 
   // SENSE_PORT |= SENSE_MASK;    //activate pull-up resistors 
   
   //// x1_lmit, x2_limit, y1_limit, y2_limit
-  LIMIT_DDR &= ~(LIMIT_MASK);  // set as input pins
+		  LIMIT_DDR &= ~(LIMIT_MASK);  // set as input pins
   // LIMIT_PORT |= LIMIT_MASK;    //activate pull-up resistors   
+*/
 }
 
 
 void control_init() {
+
+/*
   //// laser control
   // Setup Timer0 for a 31.25kH "phase correct PWM" wave (assuming a 16Mhz clock)
   // Timer0 can pwm either PD5 (OC0B) or PD6 (OC0A), we use PD6
@@ -58,39 +61,48 @@ void control_init() {
   //// limits overwrite control
   LIMITS_OVERWRITE_DDR |= 1<<LIMITS_OVERWRITE_BIT;  // define as output pin
   control_limits_overwrite(true);  // do not use hardware logic to stop steppers    
+*/
 }
 
 
 void control_laser_intensity(uint8_t intensity) {
+/*
   OCR0A = intensity;
+*/
 }
 
 
 
 void control_air(bool enable) {
-  if (enable) {
+/*
+ * if (enable) {
     AIRGAS_PORT |= (1 << AIR_BIT);
   } else {
     AIRGAS_PORT &= ~(1 << AIR_BIT);
   }
+*/
 }
 
 void control_gas(bool enable) {
-  if (enable) {
+ /*
+ * if (enable) {
     AIRGAS_PORT |= (1 << GAS_BIT);
   } else {
     AIRGAS_PORT &= ~(1 << GAS_BIT);
-  }  
+  }
+*/  
 }
 
 
 void control_limits_overwrite(bool enable) {
-  if (enable) {
+ /*
+ * if (enable) {
     // sinking the pin overwrites the limit stop hard logic
     LIMITS_OVERWRITE_PORT &= ~(1<<LIMITS_OVERWRITE_BIT);  
   } else {
     LIMITS_OVERWRITE_PORT |= (1<<LIMITS_OVERWRITE_BIT);  
   }
+*/
 }
 
 

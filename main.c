@@ -15,10 +15,7 @@
   GNU General Public License for more details.
 */
 
-#include <avr/io.h>
-#include <avr/sleep.h>
-#include <avr/interrupt.h>
-#include <util/delay.h>
+#include "dev_misc.h"
 #include "config.h"
 #include "planner.h"
 #include "stepper.h"
@@ -27,9 +24,9 @@
 #include "serial.h"
 
 
-int main() {
-  sei();  //enable interrupts
-  serial_init();
+int grbl_main(void)
+{
+  dev_enable_ints(); // Enable interrupts
   gcode_init();
   planner_init();      
   stepper_init();

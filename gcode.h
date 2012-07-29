@@ -22,8 +22,7 @@
 #ifndef gcode_h
 #define gcode_h
 
-#include <avr/io.h>
-#include <avr/pgmspace.h>
+#include "stdint.h"
 
 #define STATUS_OK 0
 #define STATUS_BAD_NUMBER_FORMAT 1

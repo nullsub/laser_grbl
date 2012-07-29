@@ -17,10 +17,10 @@
   GNU General Public License for more details.
 */
 
+#include "dev_misc.h"
 #include <inttypes.h>
 #include <math.h>
 #include <stdlib.h>
-#include <util/delay.h>
 #include <string.h>
 #include "planner.h"
 #include "stepper.h"

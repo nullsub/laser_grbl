@@ -25,22 +25,22 @@
 
 
 #define LASAURGRBL_VERSION "v12.02h"
-#define BAUD_RATE 9600
+#define BAUD_RATE 115200
 
 
-#define CONFIG_X_STEPS_PER_MM 32.80839895 //microsteps/mm
-#define CONFIG_Y_STEPS_PER_MM 32.80839895 //microsteps/mm
-#define CONFIG_Z_STEPS_PER_MM 32.80839895 //microsteps/mm
-#define CONFIG_PULSE_MICROSECONDS 5
-#define CONFIG_FEEDRATE 15000.0 // in millimeters per minute
-#define CONFIG_SEEKRATE 5000.0
-#define CONFIG_ACCELERATION 2400000.0 // mm/min^2, typically 1000000-8000000, divide by (60*60) to get mm/sec^2
-#define CONFIG_JUNCTION_DEVIATION 0.01 // mm
-#define CONFIG_X_ORIGIN_OFFSET 5.0  // mm, x-offset of table origin from physical home
-#define CONFIG_Y_ORIGIN_OFFSET 5.0  // mm, y-offset of table origin from physical home
+#define CONFIG_X_STEPS_PER_MM (4.58) //microsteps/mm
+#define CONFIG_Y_STEPS_PER_MM (7.8) //microsteps/mm
+#define CONFIG_Z_STEPS_PER_MM (5.611) //microsteps/mm
+#define CONFIG_PULSE_MICROSECONDS (30)
+#define CONFIG_FEEDRATE (1500.0) // in millimeters per minute
+#define CONFIG_SEEKRATE (1500.0)
+#define CONFIG_ACCELERATION 1000000.0 // mm/min^2, typically 1000000-8000000, divide by (60*60) to get mm/sec^2
+#define CONFIG_JUNCTION_DEVIATION 0.05 // mm
+#define CONFIG_X_ORIGIN_OFFSET 0  // mm, x-offset of table origin from physical home
+#define CONFIG_Y_ORIGIN_OFFSET 0  // mm, y-offset of table origin from physical home
 #define CONFIG_Z_ORIGIN_OFFSET 0.0   // mm, z-offset of table origin from physical home
-#define CONFIG_INVERT_X_AXIS 1  // 0 is regular, 1 inverts the x direction
-#define CONFIG_INVERT_Y_AXIS 1  // 0 is regular, 1 inverts the y direction
+#define CONFIG_INVERT_X_AXIS 0  // 0 is regular, 1 inverts the x direction
+#define CONFIG_INVERT_Y_AXIS 0  // 0 is regular, 1 inverts the y direction
 
 
 #define LIMITS_OVERWRITE_DDR     DDRD
@@ -107,7 +107,7 @@
 // round-off can be great enough to cause problems and/or it's too fast for the Arduino. The correct
 // value for this parameter is machine dependent, so it's advised to set this only as high as needed.
 // Approximate successful values can range from 30L to 100L or more.
-#define ACCELERATION_TICKS_PER_SECOND 100L
+#define ACCELERATION_TICKS_PER_SECOND 100L //---> 80
 
 // Minimum planner junction speed. Sets the default minimum speed the planner plans for at the end
 // of the buffer and all stops. This should not be much greater than zero and should only be changed
@@ -118,7 +118,7 @@
 // slower than this value, except when sleeping. This parameter overrides the minimum planner speed.
 // This is primarily used to guarantee that the end of a movement is always reached and not stop to
 // never reach its target. This parameter should always be greater than zero.
-#define MINIMUM_STEPS_PER_MINUTE 1600U // (steps/min) - Integer value only
+#define MINIMUM_STEPS_PER_MINUTE 800U // (steps/min) - Integer value only
 // 1600 @ 32step_per_mm = 50mm/min
 
 #define CHAR_XOFF   '\x13'

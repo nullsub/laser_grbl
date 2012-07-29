@@ -25,10 +25,8 @@
 #ifndef stepper_h
 #define stepper_h 
 
-#include <avr/io.h>
-#include <avr/sleep.h>
 #include <stdbool.h>
-
+#include "stdint.h"
 
 // Initialize and start the stepper motor subsystem
 void stepper_init();

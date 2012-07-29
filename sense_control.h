@@ -19,6 +19,7 @@
 #define sense_control_h
 
 #include <stdbool.h>
+#include <stdint.h>
 
 
 void sense_init();

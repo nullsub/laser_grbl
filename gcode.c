@@ -20,6 +20,7 @@
   GNU General Public License for more details.
 */
 
+#include "dev_misc.h"
 #include <string.h>
 #include <math.h>
 #include "errno.h"
@@ -95,41 +96,63 @@ void gcode_init() {
   position_update_requested = false;
 }
 
-
-void gcode_process_line() {
-  char chr = '\0';
-  int numChars = 0;
+void protocol_process()
+{
+  char c;
+  int char_counter = 0;
   uint8_t iscomment = false;
-  int status_code;
-    
-  while ((numChars==0) || (chr != '\n')) {
-    chr = serial_read();
-    // process the current char; gcode-specific
-    if (iscomment) {
-      if (chr == ')') {  // ignore comment chars
-        iscomment = false;  // end of comment
+	while(1) {
+  while((c = serial_read()) != SERIAL_NO_DATA) 
+  {
+    if ((c == '\n') || (c == '\r')) { // End of line reached
+      if (char_counter > 0) {// Line is complete. Then execute!
+        rx_line[char_counter] = 0; // Terminate string
+        //status_message(protocol_execute_line(line));
+      	return;
+	} else { 
+        // Empty or comment line. Skip block.
+        rx_line[char_counter] = 0; // Terminate string
+        return;
       }
+      char_counter = 0; // Reset line buffer index
+      iscomment = false; // Reset comment flag
     } else {
-      if (chr <= ' ') { 
-        // ignore whitepace and control characters
-      } else if (chr == '(') {
-        // ignore all characters until ')' or EOL.
-        iscomment = true;
-      } else if (numChars + 1 >= BUFFER_LINE_SIZE) {
-        // reached line size, start ignoring exessive chars (+1 is for \0)
-      } else if (chr >= 'a' && chr <= 'z') {
-        // upcase any lower case chars
-        rx_line[numChars++] = chr-'a'+'A';
+      if (iscomment) {
+        // Throw away all comment characters
+        if (c == ')') {
+          // End of comment. Resume line.
+          iscomment = false;
+        }
       } else {
-        rx_line[numChars++] = chr;
+        if (c <= ' ') { 
+          // Throw away whitepace and control characters
+        } else if (c == '/') {
+          // Disable block delete and throw away character
+          // To enable block delete, uncomment following line. Will ignore until EOL.
+          // iscomment = true;
+        } else if (c == '(') {
+          // Enable comments flag and ignore all characters until ')' or EOL.
+          iscomment = true;
+        } else if (char_counter >= BUFFER_LINE_SIZE-1) {
+          // Throw away any characters beyond the end of the line buffer
+        } else if (c >= 'a' && c <= 'z') { // Upcase lowercase
+          rx_line[char_counter++] = c-'a'+'A';
+        } else {
+          rx_line[char_counter++] = c;
+        }
       }
     }
   }
-  
-  //// process line
-  if (numChars > 0) {          // Line is complete. Then execute!
-    rx_line[numChars] = '\0';  // terminate string
+}	
+}
+
+
+void gcode_process_line() {
+  int status_code;
     
+	protocol_process();
+ //// process line
+  if (strlen(rx_line) > 0) {          // Line is complete. Then execute!
     // handle position update after a stop
     if (position_update_requested) {
       gc.position[X_AXIS] = stepper_get_position_x();
