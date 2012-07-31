@@ -23,8 +23,12 @@
 #include "planner.h"
 
 
+#include "iodefine.h"
+#define LASER_PIN	PORTA.DR.BIT.B0
 
 void sense_init() {
+	LASER_PIN = 0;
+
 /*
   //// power, chiller, door
 		 SENSE_DDR &= ~(SENSE_MASK);  // set as input pins 
@@ -39,6 +43,7 @@ void sense_init() {
 
 void control_init() {
 
+	LASER_PIN = 0;
 /*
   //// laser control
   // Setup Timer0 for a 31.25kH "phase correct PWM" wave (assuming a 16Mhz clock)
@@ -69,6 +74,12 @@ void control_laser_intensity(uint8_t intensity) {
 /*
   OCR0A = intensity;
 */
+	if(intensity == 0) {
+		LASER_PIN = 0;
+	}
+	else {	
+		LASER_PIN = 1;
+	}
 }
 
 
