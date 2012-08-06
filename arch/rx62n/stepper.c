@@ -244,11 +244,11 @@ void stepper_handler()
 
 	if(out_bits & (1<<X_STEP_BIT)) {
 		if(out_bits & (1<<X_DIRECTION_BIT)) {
-			//do_half_step(DIR_FORWARD, X_AXIS);
-			do_full_step(DIR_FORWARD, X_AXIS);
-		} else {
 //			do_half_step(DIR_BACKWARD, X_AXIS);
 			do_full_step(DIR_BACKWARD, X_AXIS);
+		} else {
+			//do_half_step(DIR_FORWARD, X_AXIS);
+			do_full_step(DIR_FORWARD, X_AXIS);
 		}
 	}	
 	if(out_bits & (1<<Y_STEP_BIT)) {
